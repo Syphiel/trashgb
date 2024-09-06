@@ -3,6 +3,9 @@ mod ppu;
 mod registers;
 
 use cpu::Cpu;
+use std::fs::File;
+use std::io::BufReader;
+use std::io::Read;
 use pixels::{Pixels, SurfaceTexture};
 use winit::dpi::LogicalSize;
 use winit::event::{Event, WindowEvent};
@@ -22,7 +25,18 @@ fn main() {
     };
 
     let mut cpu = Cpu::new();
-    cpu.memory.resize(0xFFFF, 0u8);
+    let game = File::open("./roms/tetris.gb").unwrap();
+
+    for (index, byte) in BufReader::new(game).bytes().enumerate() {
+        if index >= 0x100 {
+            cpu.memory.push(byte.unwrap());
+        }
+        else {
+            cpu.bootstrap.push(byte.unwrap());
+        }
+    }
+    cpu.memory.resize(0x10000, 0u8);
+    cpu.memory[0xFF00] = 0x0F; // TODO: Implement joypad
 
     let mut pixels = {
         let window_size = window.inner_size();
@@ -51,16 +65,9 @@ fn main() {
                 let _ = pixels.resize_surface(size.width, size.height);
             }
             Event::RedrawRequested(_) => {
-                // cpu.render_frame(pixels.frame_mut());
                 pixels.render().unwrap();
             }
             _ => (),
         }
     });
 }
-
-// fn render(frame: &mut [u8]) {
-//     for pixel in frame.chunks_exact_mut(4) {
-//         pixel.copy_from_slice(&[0xcc, 0, 0xcc, 255]);
-//     }
-// }

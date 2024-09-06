@@ -119,6 +119,20 @@ impl Flags {
             _ => unreachable!(),
         }
     }
+
+    pub fn to_u8(&self) -> u8 {
+        (self.zero.get() as u8) << 7
+            | (self.subtract.get() as u8) << 6
+            | (self.half_carry.get() as u8) << 5
+            | (self.carry.get() as u8) << 4
+    }
+
+    pub fn from_u8(&self, value: u8) {
+        self.zero.set((value >> 7 & 0b1) == 1);
+        self.subtract.set((value >> 6 & 0b1) == 1);
+        self.half_carry.set((value >> 5 & 0b1) == 1);
+        self.carry.set((value >> 4 & 0b1) == 1);
+    }
 }
 
 pub enum R8OrMem<'a> {
@@ -194,7 +208,7 @@ impl Registers {
             R16stk::BC => (&self.b, &self.c),
             R16stk::DE => (&self.d, &self.e),
             R16stk::HL => (&self.h, &self.l),
-            R16stk::AF => todo!(),
+            R16stk::AF => (&self.a, &self.a),
         }
     }
 }
