@@ -42,6 +42,29 @@ pub fn print_tiles(memory: &[u8]) {
     }
 }
 
+pub fn draw_scanline(tiles: &[u8], tilemap: &[u8], frame: &mut [u8], scx: u8, scy: u8, line: u8) {
+    for (real_idx, pixel) in frame.chunks_exact_mut(4).enumerate() {
+        let idx = (real_idx as u16 % 160 + scx as u16) + ((real_idx as u16 / 160 + scy as u16) * 256);
+        let y = idx / 256;
+        let x = idx % 256;
+        if y != line as u16 {
+            continue;
+        }
+        let tile = tilemap[((y / 8) * 32 + x / 8) as usize] as usize * 16;
+        let tile = &tiles[tile..tile + 16];
+        let y = y % 8;
+        let x = x % 8;
+        let z = ((tile[y as usize * 2] >> (7 - x) & 0b1) << 1) | (tile[y as usize * 2 + 1] >> (7 - x) & 0b1);
+        pixel.copy_from_slice(match z {
+            0 => &[255, 255, 255, 255],
+            1 => &[192, 192, 192, 255],
+            2 => &[96, 96, 96, 255],
+            3 => &[0, 0, 0, 255],
+            _ => unreachable!(),
+        });
+    }
+}
+
 pub fn draw_background(tiles: &[u8], tilemap: &[u8], frame: &mut [u8], scx: u8, scy: u8) {
     for (real_idx, pixel) in frame.chunks_exact_mut(4).enumerate() {
         let idx = (real_idx as u16 % 160 + scx as u16) + ((real_idx as u16 / 160 + scy as u16) * 256);

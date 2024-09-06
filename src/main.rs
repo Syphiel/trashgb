@@ -34,7 +34,7 @@ fn main() {
         *control_flow = ControlFlow::Poll;
         match event {
             Event::MainEventsCleared => {
-                if cpu.game_loop() && cpu.render_frame(pixels.frame_mut()) {
+                if cpu.game_loop(pixels.frame_mut()) {
                     pixels.render().unwrap();
                 }
             }
@@ -51,7 +51,7 @@ fn main() {
                 let _ = pixels.resize_surface(size.width, size.height);
             }
             Event::RedrawRequested(_) => {
-                cpu.render_frame(pixels.frame_mut());
+                // cpu.render_frame(pixels.frame_mut());
                 pixels.render().unwrap();
             }
             _ => (),

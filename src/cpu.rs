@@ -53,50 +53,50 @@ impl Cpu {
 
                     match (opcode & 0b0011_1000) >> 3 {
                         0b000 => {
-                            println!("{:#04x}: rlc r8", self.pc);
+                            // println!("{:#04x}: rlc r8", self.pc);
                             rlc_r8(operand, &self.registers.flags);
                             self.pc += 2;
                             return 2;
                         }
                         0b001 => {
-                            println!("{:#04x}: rrc r8", self.pc);
+                            // println!("{:#04x}: rrc r8", self.pc);
                             rrc_r8(operand, &self.registers.flags);
                             self.pc += 2;
                             return 2;
                         }
                         0b010 => {
-                            println!("{:#04x}: rl r8", self.pc);
+                            // println!("{:#04x}: rl r8", self.pc);
                             rl_r8(operand, &self.registers.flags);
                             self.pc += 2;
                             return 2;
                         }
                         0b011 => {
-                            println!("{:#04x}: rr r8", self.pc);
+                            // println!("{:#04x}: rr r8", self.pc);
                             rr_r8(operand, &self.registers.flags);
                             self.pc += 2;
                             return 2;
                         }
                         0b100 => {
-                            println!("{:#04x}: sla r8", self.pc);
+                            // println!("{:#04x}: sla r8", self.pc);
                             todo!()
                         }
                         0b101 => {
-                            println!("{:#04x}: sra r8", self.pc);
+                            // println!("{:#04x}: sra r8", self.pc);
                             todo!()
                         }
                         0b110 => {
-                            println!("{:#04x}: swap r8", self.pc);
+                            // println!("{:#04x}: swap r8", self.pc);
                             todo!()
                         }
                         0b111 => {
-                            println!("{:#04x}: srl r8", self.pc);
+                            // println!("{:#04x}: srl r8", self.pc);
                             todo!()
                         }
                         _ => todo!("CB Instructions"),
                     }
                 }
                 0b01 => {
-                    println!("{:#04x}: bit b3, r8", self.pc);
+                    // println!("{:#04x}: bit b3, r8", self.pc);
                     let bit_index = (opcode & 0b0011_1000) >> 3;
                     let operand = R8::from_u8(opcode & 0b0000_0111);
                     let operand = self.registers.get_r8(operand);
@@ -109,7 +109,7 @@ impl Cpu {
                     return 2;
                 }
                 0b10 => {
-                    println!("{:#04x}: res b3, r8", self.pc);
+                    // println!("{:#04x}: res b3, r8", self.pc);
                     let bit_index = (opcode & 0b0011_1000) >> 3;
                     let operand = R8::from_u8(opcode & 0b0000_0111);
                     let operand = self.registers.get_r8(operand);
@@ -122,7 +122,7 @@ impl Cpu {
                     return 2;
                 }
                 0b11 => {
-                    println!("{:#04x}: set b3, r8", self.pc);
+                    // println!("{:#04x}: set b3, r8", self.pc);
                     let bit_index = (opcode & 0b0011_1000) >> 3;
                     let operand = R8::from_u8(opcode & 0b0000_0111);
                     let operand = self.registers.get_r8(operand);
@@ -141,17 +141,17 @@ impl Cpu {
             0b00 => {
                 /* Block 0 */
                 if opcode == 0 {
-                    println!("{:#04x}: nop", self.pc);
+                    // println!("{:#04x}: nop", self.pc);
                     self.pc += 1;
                     1
                 } else if opcode == 24 {
-                    println!("{:#04x}: jr imm8", self.pc);
+                    // println!("{:#04x}: jr imm8", self.pc);
                     let imm8 = self.memory[self.pc as usize + 1] as i8;
                     self.pc = (self.pc as i16 + imm8 as i16) as u16;
                     self.pc += 2;
                     return 3;
                 } else if opcode & 0b0010_0111 == 32 {
-                    println!("{:#04x}: jr cond, imm8", self.pc);
+                    // println!("{:#04x}: jr cond, imm8", self.pc);
                     let condition = (opcode & 0b0001_1000) >> 3;
                     let condition = self.registers.flags.get_condition(condition);
                     if condition {
@@ -165,7 +165,7 @@ impl Cpu {
                 } else {
                     match opcode & 0b0000_1111 {
                         0b0001 => {
-                            println!("{:#04x}: ld r16, imm16", self.pc);
+                            // println!("{:#04x}: ld r16, imm16", self.pc);
                             let imm16 = self.memory[self.pc as usize + 1] as u16
                                 | (self.memory[self.pc as usize + 2] as u16) << 8;
                             let dest = R16::from_u8((opcode & 0b0011_0000) >> 4);
@@ -180,7 +180,7 @@ impl Cpu {
                             return 3;
                         }
                         0b0010 => {
-                            println!("{:#04x}: ld [r16mem], a", self.pc);
+                            // println!("{:#04x}: ld [r16mem], a", self.pc);
                             let dest = R16mem::from_u8((opcode & 0b0011_0000) >> 4);
                             let action = match dest {
                                 R16mem::HLi => AfterInstruction::Increment,
@@ -205,7 +205,7 @@ impl Cpu {
                             return 2;
                         }
                         0b1010 => {
-                            println!("{:#04x}: ld a, [r16mem]", self.pc);
+                            // println!("{:#04x}: ld a, [r16mem]", self.pc);
                             let source = R16mem::from_u8((opcode & 0b0011_0000) >> 4);
                             let action = match source {
                                 R16mem::HLi => AfterInstruction::Increment,
@@ -230,7 +230,7 @@ impl Cpu {
                             return 2;
                         }
                         0b1000 => {
-                            println!("{:#04x}: ld [imm16], sp", self.pc);
+                            // println!("{:#04x}: ld [imm16], sp", self.pc);
                             let imm16 = self.memory[self.pc as usize + 1] as u16
                                 | (self.memory[self.pc as usize + 2] as u16) << 8;
                             let imm16 = &mut self.memory[imm16 as usize..imm16 as usize + 1];
@@ -239,7 +239,7 @@ impl Cpu {
                             return 5;
                         }
                         0b0011 => {
-                            println!("{:#04x}: inc r16", self.pc);
+                            // println!("{:#04x}: inc r16", self.pc);
                             let operand = R16::from_u8((opcode & 0b0011_0000) >> 4);
                             let operand = self.registers.get_r16(operand);
                             inc_r16(operand);
@@ -247,7 +247,7 @@ impl Cpu {
                             return 2;
                         }
                         0b1011 => {
-                            println!("{:#04x}: dec r16", self.pc);
+                            // println!("{:#04x}: dec r16", self.pc);
                             let operand = R16::from_u8((opcode & 0b0011_0000) >> 4);
                             let operand = self.registers.get_r16(operand);
                             dec_r16(operand);
@@ -255,7 +255,7 @@ impl Cpu {
                             return 2;
                         }
                         0b1001 => {
-                            println!("{:#04x}: add hl, r16", self.pc);
+                            // println!("{:#04x}: add hl, r16", self.pc);
                             let operand = R16::from_u8((opcode & 0b0011_0000) >> 4);
                             let operand = self.registers.get_r16(operand);
                             add_hl_r16(
@@ -267,7 +267,7 @@ impl Cpu {
                             return 2;
                         }
                         0b0100 | 0b1100 => {
-                            println!("{:#04x}: inc r8", self.pc);
+                            // println!("{:#04x}: inc r8", self.pc);
                             let operand = R8::from_u8((opcode & 0b0011_1000) >> 3);
                             let operand = self.registers.get_r8(operand);
                             let operand = match operand {
@@ -279,7 +279,7 @@ impl Cpu {
                             return 1;
                         }
                         0b0101 | 0b1101 => {
-                            println!("{:#04x}: dec r8", self.pc);
+                            // println!("{:#04x}: dec r8", self.pc);
                             let operand = R8::from_u8((opcode & 0b0011_1000) >> 3);
                             let operand = self.registers.get_r8(operand);
                             let operand = match operand {
@@ -291,7 +291,7 @@ impl Cpu {
                             return 1;
                         }
                         0b1110 | 0b0110 => {
-                            println!("{:#04x}: ld r8, imm8", self.pc);
+                            // println!("{:#04x}: ld r8, imm8", self.pc);
                             let imm8 = self.memory[self.pc as usize + 1];
                             let operand = R8::from_u8((opcode & 0b0011_1000) >> 3);
                             let operand = self.registers.get_r8(operand);
@@ -305,43 +305,43 @@ impl Cpu {
                         }
                         0b0111 | 0b1111 => match (opcode & 0b0011_1000) >> 3 {
                             0b000 => {
-                                println!("{:#04x}: rlca", self.pc);
+                                // println!("{:#04x}: rlca", self.pc);
                                 rlc_r8(R8OrMem::R8(&self.registers.a), &self.registers.flags);
                                 self.pc += 1;
                                 return 1;
                             }
                             0b001 => {
-                                println!("{:#04x}: rrca", self.pc);
+                                // println!("{:#04x}: rrca", self.pc);
                                 rrc_r8(R8OrMem::R8(&self.registers.a), &self.registers.flags);
                                 self.pc += 1;
                                 return 1;
                             }
                             0b010 => {
-                                println!("{:#04x}: rla", self.pc);
+                                // println!("{:#04x}: rla", self.pc);
                                 rl_r8(R8OrMem::R8(&self.registers.a), &self.registers.flags);
                                 self.pc += 1;
                                 return 1;
                             }
                             0b011 => {
-                                println!("{:#04x}: rra", self.pc);
+                                // println!("{:#04x}: rra", self.pc);
                                 rr_r8(R8OrMem::R8(&self.registers.a), &self.registers.flags);
                                 self.pc += 1;
                                 return 1;
                             }
                             0b100 => {
-                                println!("{:#04x}: daa", self.pc);
+                                // println!("{:#04x}: daa", self.pc);
                                 todo!()
                             }
                             0b101 => {
-                                println!("{:#04x}: cpl", self.pc);
+                                // println!("{:#04x}: cpl", self.pc);
                                 todo!()
                             }
                             0b110 => {
-                                println!("{:#04x}: scf", self.pc);
+                                // println!("{:#04x}: scf", self.pc);
                                 todo!()
                             }
                             0b111 => {
-                                println!("{:#04x}: ccf", self.pc);
+                                // println!("{:#04x}: ccf", self.pc);
                                 todo!()
                             }
                             _ => unreachable!(),
@@ -354,7 +354,7 @@ impl Cpu {
             }
             0b01 => {
                 /* Block 1 */
-                println!("{:#04x}: ld r8, r8", self.pc);
+                // println!("{:#04x}: ld r8, r8", self.pc);
 
                 let dest = R8::from_u8((opcode & 0b0011_1000) >> 3);
                 let dest = self.registers.get_r8(dest);
@@ -375,7 +375,7 @@ impl Cpu {
                 ld_r8_r8(dest, source);
 
                 self.pc += 1;
-                return 1;
+                1
             }
             0b10 => {
                 /* Block 2 */
@@ -383,61 +383,65 @@ impl Cpu {
 
                 let a = &self.registers.a;
                 let r8 = self.registers.get_r8(operand);
+                let r8 = match r8 {
+                    R8OrMem::Ptr(ptr) => R8OrMem::Mem(&mut self.memory[ptr]),
+                    _ => r8,
+                };
 
                 match (opcode & 0b0011_1000) >> 3 {
                     0b0000 => {
-                        println!("{:#04x}: add a, r8", self.pc);
+                        // println!("{:#04x}: add a, r8", self.pc);
                         add_a_r8(a, r8, &self.registers.flags);
                         self.pc += 1;
-                        return 1;
+                        1
                     }
                     0b0001 => {
-                        println!("{:#04x}: adc a, r8", self.pc);
+                        // println!("{:#04x}: adc a, r8", self.pc);
                         adc_a_r8(a, r8, &self.registers.flags);
                         self.pc += 1;
-                        return 1;
+                        1
                     }
                     0b0010 => {
-                        println!("{:#04x}: sub a, r8", self.pc);
+                        // println!("{:#04x}: sub a, r8", self.pc);
                         sub_a_r8(a, r8, &self.registers.flags);
                         self.pc += 1;
-                        return 1;
+                        1
                     }
                     0b0011 => {
-                        println!("{:#04x}: sbc a, r8", self.pc);
+                        // println!("{:#04x}: sbc a, r8", self.pc);
                         sbc_a_r8(a, r8, &self.registers.flags);
                         self.pc += 1;
-                        return 1;
+                        1
                     }
                     0b0100 => {
-                        println!("{:#04x}: and a, r8", self.pc);
+                        // println!("{:#04x}: and a, r8", self.pc);
                         and_a_r8(a, r8, &self.registers.flags);
                         self.pc += 1;
-                        return 1;
+                        1
                     }
                     0b0101 => {
-                        println!("{:#04x}: xor a, r8", self.pc);
+                        // println!("{:#04x}: xor a, r8", self.pc);
                         xor_a_r8(a, r8, &self.registers.flags);
                         self.pc += 1;
-                        return 1;
+                        1
                     }
                     0b0110 => {
-                        println!("{:#04x}: or a, r8", self.pc);
+                        // println!("{:#04x}: or a, r8", self.pc);
                         or_a_r8(a, r8, &self.registers.flags);
                         self.pc += 1;
-                        return 1;
+                        1
                     }
                     0b0111 => {
-                        println!("{:#04x}: cp a, r8", self.pc);
+                        // println!("{:#04x}: cp a, r8", self.pc);
                         cp_a_r8(a, r8, &self.registers.flags);
                         self.pc += 1;
-                        return 1;
+                        1
                     }
                     _ => {
-                        println!("{:#04x}: Unknown opcode {}", self.pc, opcode);
+                        // println!("{:#04x}: Unknown opcode {}", self.pc, opcode);
                         unreachable!()
                     }
-                };
+                }
             }
             0b11 => {
                 /* Block 3 */
@@ -446,49 +450,49 @@ impl Cpu {
                     let a = &self.registers.a;
                     match (opcode & 0b0011_1000) >> 3 {
                         0b000 => {
-                            println!("{:#04x}: add a, imm8", self.pc);
+                            // println!("{:#04x}: add a, imm8", self.pc);
                             add_a_imm8(a, imm8, &self.registers.flags);
                             self.pc += 2;
                             return 2;
                         }
                         0b001 => {
-                            println!("{:#04x}: adc a, imm8", self.pc);
+                            // println!("{:#04x}: adc a, imm8", self.pc);
                             adc_a_imm8(a, imm8, &self.registers.flags);
                             self.pc += 2;
                             return 2;
                         }
                         0b010 => {
-                            println!("{:#04x}: sub a, imm8", self.pc);
+                            // println!("{:#04x}: sub a, imm8", self.pc);
                             sub_a_imm8(a, imm8, &self.registers.flags);
                             self.pc += 2;
                             return 2;
                         }
                         0b011 => {
-                            println!("{:#04x}: sbc a, imm8", self.pc);
+                            // println!("{:#04x}: sbc a, imm8", self.pc);
                             sbc_a_imm8(a, imm8, &self.registers.flags);
                             self.pc += 2;
                             return 2;
                         }
                         0b100 => {
-                            println!("{:#04x}: and a, imm8", self.pc);
+                            // println!("{:#04x}: and a, imm8", self.pc);
                             and_a_imm8(a, imm8, &self.registers.flags);
                             self.pc += 2;
                             return 2;
                         }
                         0b101 => {
-                            println!("{:#04x}: xor a, imm8", self.pc);
+                            // println!("{:#04x}: xor a, imm8", self.pc);
                             xor_a_imm8(a, imm8, &self.registers.flags);
                             self.pc += 2;
                             return 2;
                         }
                         0b110 => {
-                            println!("{:#04x}: or a, imm8", self.pc);
+                            // println!("{:#04x}: or a, imm8", self.pc);
                             or_a_imm8(a, imm8, &self.registers.flags);
                             self.pc += 2;
                             return 2;
                         }
                         0b111 => {
-                            println!("{:#04x}: cp a, imm8", self.pc);
+                            // println!("{:#04x}: cp a, imm8", self.pc);
                             cp_a_imm8(a, imm8, &self.registers.flags);
                             self.pc += 2;
                             return 2;
@@ -501,7 +505,7 @@ impl Cpu {
 
                 match opcode {
                     0b1110_0010 => {
-                        println!("{:#04x}: ld (c), a", self.pc);
+                        // println!("{:#04x}: ld (c), a", self.pc);
                         let a = self.registers.a.get();
                         let c = self.registers.c.get();
                         let c = &mut self.memory[0xFF00 + c as usize];
@@ -510,7 +514,7 @@ impl Cpu {
                         return 2;
                     }
                     0b1111_0010 => {
-                        println!("{:#04x}: ld a, (c)", self.pc);
+                        // println!("{:#04x}: ld a, (c)", self.pc);
                         let a = &self.registers.a;
                         let c = self.registers.c.get();
                         let c = self.memory[0xFF00 + c as usize];
@@ -519,15 +523,23 @@ impl Cpu {
                         return 2;
                     }
                     0b1110_0000 => {
-                        println!("{:#04x}: ldh [imm8], a", self.pc);
+                        // println!("{:#04x}: ldh [imm8], a", self.pc);
                         let imm8 = self.memory[self.pc as usize + 1];
                         let imm8 = &mut self.memory[0xFF00 + imm8 as usize];
                         ldh_imm8_a(imm8, &self.registers.a);
                         self.pc += 2;
                         return 3;
                     }
+                    0b1111_0000 => {
+                        // println!("{:#04x}: ldh a, [imm8]", self.pc);
+                        let imm8 = self.memory[self.pc as usize + 1];
+                        let imm8 = self.memory[0xFF00 + imm8 as usize];
+                        ldh_a_imm8(&self.registers.a, imm8);
+                        self.pc += 2;
+                        return 3;
+                    }
                     0b1110_1010 => {
-                        println!("{:#04x}: ld [imm16], a", self.pc);
+                        // println!("{:#04x}: ld [imm16], a", self.pc);
                         let imm16 = self.memory[self.pc as usize + 1] as u16
                             | (self.memory[self.pc as usize + 2] as u16) << 8;
                         let imm16 = &mut self.memory[imm16 as usize];
@@ -536,7 +548,7 @@ impl Cpu {
                         return 4;
                     }
                     0b1100_1101 => {
-                        println!("{:#04x}: call imm16", self.pc);
+                        // println!("{:#04x}: call imm16", self.pc);
                         self.memory[self.sp as usize - 1] = (self.pc + 3) as u8;
                         self.memory[self.sp as usize - 2] = ((self.pc + 3) >> 8) as u8;
                         self.sp -= 2;
@@ -546,10 +558,10 @@ impl Cpu {
                         return 6;
                     }
                     0b1100_1001 => {
-                        println!("{:#04x}: ret", self.pc);
+                        // println!("{:#04x}: ret", self.pc);
                         self.pc = self.memory[self.sp as usize + 1] as u16
                             | (self.memory[self.sp as usize] as u16) << 8;
-                        println!("{:#04x}", self.pc);
+                        // println!("{:#04x}", self.pc);
                         self.sp += 2;
                         return 4;
                     }
@@ -558,7 +570,7 @@ impl Cpu {
 
                 match opcode & 0b0000_1111 {
                     0b0001 => {
-                        println!("{:#04x}: pop r16stk", self.pc);
+                        // println!("{:#04x}: pop r16stk", self.pc);
                         let register = R16stk::from_u8((opcode & 0b0011_0000) >> 4);
                         let register = self.registers.get_r16stk(register);
                         let lo = self.memory[self.sp as usize];
@@ -569,7 +581,7 @@ impl Cpu {
                         return 4;
                     }
                     0b0101 => {
-                        println!("{:#04x}: push r16stk", self.pc);
+                        // println!("{:#04x}: push r16stk", self.pc);
                         let register = R16stk::from_u8((opcode & 0b0011_0000) >> 4);
                         let register = self.registers.get_r16stk(register);
                         let lo = register.1.get();
@@ -588,14 +600,35 @@ impl Cpu {
         }
     }
 
-    pub fn game_loop(&mut self) -> bool {
-        if self.pc < self.memory.len() as u16 && self.memory[self.pc as usize] != 0xf0 {
-            let mut ticks = 0;
-            while ticks < 1000 && self.memory[self.pc as usize] != 0xf0 {
-                ticks += self.step() as u32;
-            }
+    pub fn game_loop(&mut self, frame: &mut [u8]) -> bool {
+        if self.last_frame.elapsed().as_millis() < 16 {
             return false;
         }
+
+        if self.pc < self.memory.len() as u16 && self.memory[self.pc as usize] != 0x00 {
+            let mut ticks = 0;
+            for line in 0..154 {
+                while ticks < 456 {
+                    if self.memory[self.pc as usize] == 0x00 {
+                        return false;
+                    }
+                    ticks += self.step() as u32;
+                }
+                ticks = 0;
+                if line < 144 {
+                    ppu::draw_scanline(
+                        &self.memory[0x8000..0x9000],
+                        &self.memory[0x9800..0x9C00],
+                        frame,
+                        self.memory[0xFF43],
+                        self.memory[0xFF42],
+                        line,
+                    );
+                }
+                self.memory[0xFF44] = line as u8;
+            }
+        }
+        self.last_frame = Instant::now();
         true
     }
 
@@ -606,7 +639,8 @@ impl Cpu {
                 &self.memory[0x8000..0x9000],
                 &self.memory[0x9800..0x9C00],
                 frame,
-                0, 0
+                220,
+                0,
             );
             self.last_frame = Instant::now();
             return true;
@@ -615,18 +649,18 @@ impl Cpu {
     }
 
     pub fn execute(&mut self) {
-        println!("{:?}", self.memory[0x95]);
+        // println!("{:?}", self.memory[0x95]);
         loop {
             self.step();
             if self.pc >= self.memory.len() as u16 || self.memory[self.pc as usize] == 0xf0 {
-                println!("{:#04x}: End of program", self.pc);
+                // println!("{:#04x}: End of program", self.pc);
                 print_tiles(&self.memory[0x8000..0x9000]);
                 // ppu::test();
                 // println!("map");
                 // print_tiles(&self.memory[0x9800..0x9C00]);
-                println!("{}", self.memory.len());
-                println!("{}", self.memory[self.pc as usize]);
-                println!("{:?}", self.memory[0x95]);
+                // println!("{}", self.memory.len());
+                // println!("{}", self.memory[self.pc as usize]);
+                // println!("{:?}", self.memory[0x95]);
                 break;
             }
         }
@@ -1012,6 +1046,10 @@ fn ld_a_c(a: &Cell<u8>, c: u8) {
 
 fn ldh_imm8_a(imm8: &mut u8, a: &Cell<u8>) {
     *imm8 = a.get();
+}
+
+fn ldh_a_imm8(a: &Cell<u8>, imm8: u8) {
+    a.set(imm8);
 }
 
 fn rlc_r8(r8: R8OrMem, flags: &Flags) {
