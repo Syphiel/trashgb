@@ -887,7 +887,7 @@ impl Cpu {
                             self.sp -= 2;
                             self.pc = 0x40;
                         } else {
-                            panic!("Interrupt not implemented");
+                            println!("{:08b} {:08b}", self.memory[0xFFFF], self.memory[0xFF0F]);
                         }
                     }
                 }
@@ -1254,21 +1254,23 @@ fn add_a_imm8(a: &Cell<u8>, imm8: u8, flags: &Flags) {
     a.set(result);
 }
 
-fn adc_a_imm8(a: &Cell<u8>, imm8: u8, flags: &Flags) {
-    let (result, overflow) = if flags.carry.get() {
-        flags.half_carry.set((a.get() & 0xF) + (imm8 & 0xF) > 0xF);
-        a.get().overflowing_add(imm8)
+fn adc_a_imm8(r8: &Cell<u8>, imm8: u8, flags: &Flags) {
+    let a = r8.get() as u16;
+    let imm8 = imm8 as u16;
+
+    let result = if !flags.carry.get() {
+        flags.half_carry.set((a & 0xF) + (imm8 & 0xF) > 0xF);
+        flags.carry.set(a + imm8 > 0xFF);
+        (a + imm8) as u8
     } else {
-        flags
-            .half_carry
-            .set((a.get() & 0xF) + (imm8 & 0xF) + 1 > 0xF);
-        a.get().overflowing_add(imm8 + 1)
+        flags.half_carry.set((a & 0xF) + (imm8 & 0xF) + 1 > 0xF);
+        flags.carry.set(a + imm8 + 1 > 0xFF);
+        (a + imm8 + 1) as u8
     };
     flags.zero.set(result == 0);
-    flags.carry.set(overflow);
     flags.subtract.set(false);
 
-    a.set(result);
+    r8.set(result);
 }
 
 fn sub_a_imm8(a: &Cell<u8>, imm8: u8, flags: &Flags) {
@@ -1280,19 +1282,18 @@ fn sub_a_imm8(a: &Cell<u8>, imm8: u8, flags: &Flags) {
     a.set(result);
 }
 
-fn sbc_a_imm8(a: &Cell<u8>, imm8: u8, flags: &Flags) {
-    let (result, overflow) = if flags.carry.get() {
-        flags.half_carry.set((a.get() & 0xF) < (imm8 & 0xF));
-        a.get().overflowing_sub(imm8)
-    } else {
-        flags.half_carry.set((a.get() & 0xF) - 1 < (imm8 & 0xF));
-        a.get().overflowing_sub(imm8 - 1)
-    };
+fn sbc_a_imm8(r8: &Cell<u8>, imm8: u8, flags: &Flags) {
+    let a = r8.get() as u16;
+    let c = flags.carry.get() as u16;
+    let imm8 = imm8 as u16;
+
+    let result = a.wrapping_sub(imm8 + c) as u8;
+    flags.half_carry.set(a & 0xF < (imm8 & 0xF) + c);
+    flags.carry.set(a < imm8 + c);
     flags.zero.set(result == 0);
-    flags.carry.set(overflow);
     flags.subtract.set(true);
 
-    a.set(result);
+    r8.set(result as u8);
 }
 
 fn and_a_imm8(a: &Cell<u8>, imm8: u8, flags: &Flags) {
@@ -1566,6 +1567,18 @@ fn sra_r8(r8: R8OrMem, flags: &Flags) {
     flags.half_carry.set(false);
 }
 
-fn add_hl_sp_imm8((_h, _l): (&Cell<u8>, &Cell<u8>), _sp: u16, _imm8: i8, _flags: &Flags) {
-    return;
+fn add_hl_sp_imm8((h, l): (&Cell<u8>, &Cell<u8>), sp: u16, imm8: i8, flags: &Flags) {
+    let imm8 = imm8 as i16;
+    let hl = sp.wrapping_add(imm8 as u16);
+    flags.zero.set(false);
+    flags.subtract.set(false);
+    flags.carry.set((sp & 0xFF) + (imm8 as u16) > 0xFF);
+    flags.half_carry.set((sp & 0xF) + (imm8 as u16) > 0xF);
+    h.set((hl >> 8) as u8);
+    l.set(hl as u8);
+    println!(
+        "add hl, sp+imm8 = add hl, {:?} + {:?} = {:?}",
+        sp as i16, imm8 as i16, hl as i16
+    );
+    // println!("{:?}", flags);
 }
