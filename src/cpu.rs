@@ -352,18 +352,21 @@ impl Cpu {
                             0b000 => {
                                 // ## println!("{:#04x}: rlca", self.pc);
                                 rlc_r8(R8OrMem::R8(&self.registers.a), &self.registers.flags);
+                                self.registers.flags.zero.set(false);
                                 self.pc += 1;
                                 return 1;
                             }
                             0b001 => {
                                 // ## println!("{:#04x}: rrca", self.pc);
                                 rrc_r8(R8OrMem::R8(&self.registers.a), &self.registers.flags);
+                                self.registers.flags.zero.set(false);
                                 self.pc += 1;
                                 return 1;
                             }
                             0b010 => {
                                 // ## println!("{:#04x}: rla", self.pc);
                                 rl_r8(R8OrMem::R8(&self.registers.a), &self.registers.flags);
+                                self.registers.flags.zero.set(false);
                                 self.pc += 1;
                                 return 1;
                             }
@@ -371,6 +374,7 @@ impl Cpu {
                                 // ## println!("{:#04x}: rra", self.pc);
                                 rr_r8(R8OrMem::R8(&self.registers.a), &self.registers.flags);
                                 self.pc += 1;
+                                self.registers.flags.zero.set(false);
                                 return 1;
                             }
                             0b100 => {
@@ -381,7 +385,7 @@ impl Cpu {
                             }
                             0b101 => {
                                 // ## println!("{:#04x}: cpl", self.pc);
-                                cpl(&self.registers.a);
+                                cpl(&self.registers.a, &self.registers.flags);
                                 self.pc += 1;
                                 return 1;
                             }
@@ -961,25 +965,27 @@ fn add_a_r8(a: &Cell<u8>, r8: R8OrMem, flags: &Flags) {
     a.set(result);
 }
 
-fn adc_a_r8(a: &Cell<u8>, r8: R8OrMem, flags: &Flags) {
-    let r8 = match r8 {
+fn adc_a_r8(reg_a: &Cell<u8>, r8: R8OrMem, flags: &Flags) {
+    let a = reg_a.get() as u16;
+    let imm8 = match r8 {
         R8OrMem::R8(r8) => r8.get(),
         R8OrMem::Mem(r8) => *r8,
         R8OrMem::Ptr(_) => panic!("Pointer not supported"),
-    };
+    } as u16;
 
-    let (result, overflow) = if flags.carry.get() {
-        flags.half_carry.set((a.get() & 0xF) + (r8 & 0xF) > 0xF);
-        a.get().overflowing_add(r8)
+    let result = if !flags.carry.get() {
+        flags.half_carry.set((a & 0xF) + (imm8 & 0xF) > 0xF);
+        flags.carry.set(a + imm8 > 0xFF);
+        (a + imm8) as u8
     } else {
-        flags.half_carry.set((a.get() & 0xF) + (r8 & 0xF) + 1 > 0xF);
-        a.get().overflowing_add(r8 + 1)
+        flags.half_carry.set((a & 0xF) + (imm8 & 0xF) + 1 > 0xF);
+        flags.carry.set(a + imm8 + 1 > 0xFF);
+        (a + imm8 + 1) as u8
     };
     flags.zero.set(result == 0);
-    flags.carry.set(overflow);
     flags.subtract.set(false);
 
-    a.set(result);
+    reg_a.set(result);
 }
 
 fn sub_a_r8(a: &Cell<u8>, r8: R8OrMem, flags: &Flags) {
@@ -997,25 +1003,22 @@ fn sub_a_r8(a: &Cell<u8>, r8: R8OrMem, flags: &Flags) {
     a.set(result);
 }
 
-fn sbc_a_r8(a: &Cell<u8>, r8: R8OrMem, flags: &Flags) {
-    let r8 = match r8 {
+fn sbc_a_r8(reg_a: &Cell<u8>, r8: R8OrMem, flags: &Flags) {
+    let a = reg_a.get() as u16;
+    let c = flags.carry.get() as u16;
+    let imm8 = match r8 {
         R8OrMem::R8(r8) => r8.get(),
         R8OrMem::Mem(r8) => *r8,
         R8OrMem::Ptr(_) => panic!("Pointer not supported"),
-    };
+    } as u16;
 
-    let (result, overflow) = if flags.carry.get() {
-        flags.half_carry.set((a.get() & 0xF) < (r8 & 0xF));
-        a.get().overflowing_sub(r8)
-    } else {
-        flags.half_carry.set((a.get() & 0xF) - 1 < (r8 & 0xF));
-        a.get().overflowing_sub(r8 - 1)
-    };
+    let result = a.wrapping_sub(imm8 + c) as u8;
+    flags.half_carry.set(a & 0xF < (imm8 & 0xF) + c);
+    flags.carry.set(a < imm8 + c);
     flags.zero.set(result == 0);
-    flags.carry.set(overflow);
     flags.subtract.set(true);
 
-    a.set(result);
+    reg_a.set(result);
 }
 
 fn and_a_r8(a: &Cell<u8>, r8: R8OrMem, flags: &Flags) {
@@ -1393,14 +1396,14 @@ fn rl_r8(r8: R8OrMem, flags: &Flags) {
     let (result, overflow) = match r8 {
         R8OrMem::R8(r8) => {
             let overflow = r8.get() & 0b1000_0000 != 0;
-            let result = r8.get() << 1;
-            r8.set(result | flags.carry.get() as u8);
+            let result = (r8.get() << 1) | flags.carry.get() as u8;
+            r8.set(result);
             (result, overflow)
         }
         R8OrMem::Mem(r8) => {
             let overflow = (*r8) & 0b1000_0000 != 0;
-            let result = (*r8) << 1;
-            *r8 = result | flags.carry.get() as u8;
+            let result = ((*r8) << 1) | flags.carry.get() as u8;
+            *r8 = result;
             (result, overflow)
         }
         R8OrMem::Ptr(_) => panic!("Pointer not supported"),
@@ -1416,14 +1419,14 @@ fn rr_r8(r8: R8OrMem, flags: &Flags) {
     let (result, overflow) = match r8 {
         R8OrMem::R8(r8) => {
             let overflow = r8.get() & 0b0000_0001 != 0;
-            let result = r8.get() >> 1;
-            r8.set(result | (flags.carry.get() as u8) << 7);
+            let result = r8.get() >> 1 | (flags.carry.get() as u8) << 7;
+            r8.set(result);
             (result, overflow)
         }
         R8OrMem::Mem(r8) => {
             let overflow = (*r8) & 0b0000_0001 != 0;
-            let result = (*r8) >> 1;
-            *r8 = result | (flags.carry.get() as u8) << 7;
+            let result = (*r8) >> 1 | (flags.carry.get() as u8) << 7;
+            *r8 = result;
             (result, overflow)
         }
         R8OrMem::Ptr(_) => panic!("Pointer not supported"),
@@ -1439,8 +1442,10 @@ fn ld_imm16_a(imm16: &mut u8, a: &Cell<u8>) {
     *imm16 = a.get();
 }
 
-fn cpl(a: &Cell<u8>) {
+fn cpl(a: &Cell<u8>, flags: &Flags) {
     a.set(!a.get());
+    flags.subtract.set(true);
+    flags.half_carry.set(true);
 }
 
 fn swap_r8(r8: R8OrMem, flags: &Flags) {
@@ -1526,13 +1531,13 @@ fn daa(a: &Cell<u8>, flags: &Flags) {
 fn sla_r8(r8: R8OrMem, flags: &Flags) {
     let result = match r8 {
         R8OrMem::R8(r8) => {
-            flags.carry.set(r8.get() & 0b1000_0000 == 1);
+            flags.carry.set(r8.get() & 0b1000_0000 != 0);
             let result = r8.get() << 1;
             r8.set(result);
             result
         }
         R8OrMem::Mem(r8) => {
-            flags.carry.set((*r8) & 0b1000_0000 == 1);
+            flags.carry.set((*r8) & 0b1000_0000 != 0);
             let result = (*r8) << 1;
             *r8 = result;
             result
