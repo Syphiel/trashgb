@@ -124,7 +124,7 @@ impl Cpu {
                             self.pc += 2;
                             return 2;
                         }
-                        _ => todo!("CB Instructions"),
+                        _ => panic!("Bad CB Instructions"),
                     }
                 }
                 0b01 => {
@@ -606,10 +606,17 @@ impl Cpu {
                         // ## println!("{:#04x}: ldh a, [imm8]", self.pc);
                         let imm8 = self.memory[self.pc as usize + 1];
                         if imm8 == 0x00 {
+                            // TODO: joystick input
                             self.registers.a.set(0xef);
                             self.pc += 2;
                             return 3;
                         }
+                        // } else if imm8 == 0x44 {
+                        //     // TEMP: For testing
+                        //     self.registers.a.set(0x90);
+                        //     self.pc += 2;
+                        //     return 3;
+                        // }
                         let imm8 = self.memory[0xFF00 + imm8 as usize];
                         ldh_a_imm8(&self.registers.a, imm8);
                         self.pc += 2;
@@ -644,9 +651,68 @@ impl Cpu {
                         self.pc += 3;
                         return 3;
                     }
+                    0b1101_1010 => {
+                        // ## println!("{:#04x}: jp c, imm16", self.pc);
+                        if self.registers.flags.carry.get() {
+                            self.pc = self.memory[self.pc as usize + 1] as u16
+                                | (self.memory[self.pc as usize + 2] as u16) << 8;
+                            return 4;
+                        }
+                        self.pc += 3;
+                        return 3;
+                    }
+                    0b1101_0010 => {
+                        // ## println!("{:#04x}: jp nc, imm16", self.pc);
+                        if !self.registers.flags.carry.get() {
+                            self.pc = self.memory[self.pc as usize + 1] as u16
+                                | (self.memory[self.pc as usize + 2] as u16) << 8;
+                            return 4;
+                        }
+                        self.pc += 3;
+                        return 3;
+                    }
                     0b1100_0100 => {
+                        // ## println!("{:#04x}: call nz, imm16", self.pc);
+                        if !self.registers.flags.zero.get() {
+                            self.memory[self.sp as usize - 2] = (self.pc + 3) as u8;
+                            self.memory[self.sp as usize - 1] = ((self.pc + 3) >> 8) as u8;
+                            self.sp -= 2;
+                            self.pc = self.memory[self.pc as usize + 1] as u16
+                                | (self.memory[self.pc as usize + 2] as u16) << 8;
+                            return 6;
+                        }
+                        self.pc += 3;
+                        return 3;
+                    }
+                    0b1100_1100 => {
                         // ## println!("{:#04x}: call z, imm16", self.pc);
                         if self.registers.flags.zero.get() {
+                            self.memory[self.sp as usize - 2] = (self.pc + 3) as u8;
+                            self.memory[self.sp as usize - 1] = ((self.pc + 3) >> 8) as u8;
+                            self.sp -= 2;
+                            self.pc = self.memory[self.pc as usize + 1] as u16
+                                | (self.memory[self.pc as usize + 2] as u16) << 8;
+                            return 6;
+                        }
+                        self.pc += 3;
+                        return 3;
+                    }
+                    0b1101_1100 => {
+                        // ## println!("{:#04x}: call c, imm16", self.pc);
+                        if self.registers.flags.carry.get() {
+                            self.memory[self.sp as usize - 2] = (self.pc + 3) as u8;
+                            self.memory[self.sp as usize - 1] = ((self.pc + 3) >> 8) as u8;
+                            self.sp -= 2;
+                            self.pc = self.memory[self.pc as usize + 1] as u16
+                                | (self.memory[self.pc as usize + 2] as u16) << 8;
+                            return 6;
+                        }
+                        self.pc += 3;
+                        return 3;
+                    }
+                    0b1101_0100 => {
+                        // ## println!("{:#04x}: call nc, imm16", self.pc);
+                        if !self.registers.flags.carry.get() {
                             self.memory[self.sp as usize - 2] = (self.pc + 3) as u8;
                             self.memory[self.sp as usize - 1] = ((self.pc + 3) >> 8) as u8;
                             self.sp -= 2;
@@ -880,6 +946,24 @@ impl Cpu {
                     // }
                     // if self.memory[0xFF80] == 0xFF {
                     //     panic!("{:#04x}: Uh oh..", self.pc);
+                    // }
+                    // if self.state == State::Running {
+                    //     println!("A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:04X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}",
+                    //         self.registers.a.get(),
+                    //         self.registers.flags.to_u8(),
+                    //         self.registers.b.get(),
+                    //         self.registers.c.get(),
+                    //         self.registers.d.get(),
+                    //         self.registers.e.get(),
+                    //         self.registers.h.get(),
+                    //         self.registers.l.get(),
+                    //         self.sp,
+                    //         self.pc,
+                    //         self.memory[self.pc as usize],
+                    //         self.memory[self.pc as usize + 1],
+                    //         self.memory[self.pc as usize + 2],
+                    //         self.memory[self.pc as usize + 3],
+                    //     );
                     // }
                     ticks += self.step() as u32;
                     if self.ime && (self.memory[0xFFFF] & self.memory[0xFF0F]) != 0 {
@@ -1577,13 +1661,8 @@ fn add_hl_sp_imm8((h, l): (&Cell<u8>, &Cell<u8>), sp: u16, imm8: i8, flags: &Fla
     let hl = sp.wrapping_add(imm8 as u16);
     flags.zero.set(false);
     flags.subtract.set(false);
-    flags.carry.set((sp & 0xFF) + (imm8 as u16) > 0xFF);
-    flags.half_carry.set((sp & 0xF) + (imm8 as u16) > 0xF);
+    flags.carry.set((sp & 0xFF) + (imm8 as u16 & 0xFF) > 0xFF);
+    flags.half_carry.set((sp & 0xF) + (imm8 as u16 & 0xF) > 0xF);
     h.set((hl >> 8) as u8);
     l.set(hl as u8);
-    println!(
-        "add hl, sp+imm8 = add hl, {:?} + {:?} = {:?}",
-        sp as i16, imm8 as i16, hl as i16
-    );
-    // println!("{:?}", flags);
 }
