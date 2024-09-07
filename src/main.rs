@@ -25,6 +25,7 @@ fn main() {
     };
 
     let mut cpu = Cpu::new();
+    // let game = File::open("./roms/tests/03-op sp,hl.gb").unwrap();
     let game = File::open("./roms/tetris.gb").unwrap();
 
     for (index, byte) in BufReader::new(game).bytes().enumerate() {
@@ -36,7 +37,7 @@ fn main() {
         }
     }
     cpu.memory.resize(0x10000, 0u8);
-    cpu.memory[0xFF00] = 0x0F; // TODO: Implement joypad
+    cpu.memory[0xFF00] = 0xF; // TODO: Implement joypad
 
     let mut pixels = {
         let window_size = window.inner_size();

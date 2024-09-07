@@ -141,6 +141,11 @@ pub enum R8OrMem<'a> {
     Ptr(usize),
 }
 
+pub enum R16OrSP<'a> {
+    R16(&'a Cell<u8>, &'a Cell<u8>),
+    SP,
+}
+
 #[derive(Debug)]
 pub struct Registers {
     pub a: Cell<u8>,
@@ -185,12 +190,12 @@ impl Registers {
         }
     }
 
-    pub fn get_r16(&self, r16: R16) -> (&Cell<u8>, &Cell<u8>) {
+    pub fn get_r16(&self, r16: R16) -> R16OrSP {
         match r16 {
-            R16::BC => (&self.b, &self.c),
-            R16::DE => (&self.d, &self.e),
-            R16::HL => (&self.h, &self.l),
-            R16::SP => todo!("R16::SP"),
+            R16::BC => R16OrSP::R16(&self.b, &self.c),
+            R16::DE => R16OrSP::R16(&self.d, &self.e),
+            R16::HL => R16OrSP::R16(&self.h, &self.l),
+            R16::SP => R16OrSP::SP,
         }
     }
 
