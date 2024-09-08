@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::ppu::{self, print_tiles, Ppu};
+use crate::ppu::{self, Ppu};
 use crate::registers::{Flags, R16OrSP, R8OrMem, Registers, R16, R8};
 use std::cell::Cell;
 use std::time::Instant;
@@ -611,7 +611,7 @@ impl Cpu {
                             self.pc += 2;
                             return 3;
                         }
-                        // } else if imm8 == 0x44 {
+                        // else if imm8 == 0x44 {
                         //     // TEMP: For testing
                         //     self.registers.a.set(0x90);
                         //     self.pc += 2;
@@ -626,6 +626,11 @@ impl Cpu {
                         // ## println!("{:#04x}: ld [imm16], a", self.pc);
                         let imm16 = self.memory[self.pc as usize + 1] as u16
                             | (self.memory[self.pc as usize + 2] as u16) << 8;
+                        if imm16 == 0x2000 {
+                            eprintln!("Ignoring write to 0x2000");
+                            self.pc += 3;
+                            return 4;
+                        }
                         let imm16 = &mut self.memory[imm16 as usize];
                         ld_imm16_a(imm16, &self.registers.a);
                         self.pc += 3;
@@ -901,18 +906,15 @@ impl Cpu {
                     }
                     _ => {}
                 }
-                todo!("{:#04x}: Block 3 - Opcode {:#04x}", self.pc, opcode);
+                panic!("{:#04x}: Block 3 - Opcode {:#04x}", self.pc, opcode);
             }
             _ => unreachable!(),
         }
     }
 
     pub fn game_loop(&mut self, frame: &mut [u8]) -> bool {
-        if self.last_frame.elapsed().as_millis() < 16 {
-            return false;
-        }
+        self.last_frame = Instant::now();
 
-        // if self.pc < self.memory.len() as u16 && self.memory[self.pc as usize] != 0x00 {
         if (self.pc as usize) < self.memory.len() {
             let mut ticks = 0;
             for line in 0..154 {
@@ -921,32 +923,6 @@ impl Cpu {
                         self.memory[0..0x100].copy_from_slice(&self.bootstrap);
                         self.state = State::Running;
                     }
-                    // if self.pc >= 0x01db && self.pc <= 0x020b {
-                    //     println!("{:#04x}: {:?}", self.pc, self.registers);
-                    //     println!(
-                    //         "{:#04x}: SP[{:#06x}] {:#04x}{:02x}",
-                    //         self.pc,
-                    //         self.sp,
-                    //         self.memory[self.sp as usize + 1],
-                    //         self.memory[self.sp as usize]
-                    //     );
-                    //     println!("FFE2: {:?}", self.memory[0xFFE2]);
-                    //     println!("FF85: {:?}", self.memory[0xFF85]);
-                    // }
-                    // if self.pc == 0x20b && self.state == State::Running {
-                    //     println!("{:?}", self.registers);
-                    //     println!("SP: {:#04x}", self.sp);
-                    //     println!(
-                    //         "Stack {:#04x}{:02x}",
-                    //         self.memory[self.sp as usize + 1],
-                    //         self.memory[(self.sp) as usize]
-                    //     );
-                    //     println!("{:?}", self.memory[0xFFA6]);
-                    //     panic!("Got to 0x369");
-                    // }
-                    // if self.memory[0xFF80] == 0xFF {
-                    //     panic!("{:#04x}: Uh oh..", self.pc);
-                    // }
                     // if self.state == State::Running {
                     //     println!("A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:04X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}",
                     //         self.registers.a.get(),
@@ -974,8 +950,6 @@ impl Cpu {
                             self.memory[self.sp as usize - 1] = (self.pc >> 8) as u8;
                             self.sp -= 2;
                             self.pc = 0x40;
-                        } else {
-                            println!("{:08b} {:08b}", self.memory[0xFFFF], self.memory[0xFF0F]);
                         }
                     }
                 }
@@ -996,43 +970,10 @@ impl Cpu {
                 self.memory[0xFF44] = line as u8;
             }
         }
-        // ## println!("{:#04x}: End of program", self.pc);
-        self.last_frame = Instant::now();
         true
     }
-
-    pub fn render_frame(&mut self, frame: &mut [u8]) -> bool {
-        // print_tiles(&self.memory[0x8000..0x9000]);
-        if self.last_frame.elapsed().as_millis() >= 16 {
-            ppu::draw_background(
-                &self.memory[0x8000..0x9000],
-                &self.memory[0x9800..0x9C00],
-                frame,
-                220,
-                0,
-            );
-            self.last_frame = Instant::now();
-            return true;
-        }
-        false
-    }
-
-    pub fn execute(&mut self) {
-        // ## println!("{:?}", self.memory[0x95]);
-        loop {
-            self.step();
-            if self.pc >= self.memory.len() as u16 || self.memory[self.pc as usize] == 0xf0 {
-                // ## println!("{:#04x}: End of program", self.pc);
-                print_tiles(&self.memory[0x8000..0x9000]);
-                // ## println!("map");
-                // ## println!("{}", self.memory.len());
-                // ## println!("{}", self.memory[self.pc as usize]);
-                // ## println!("{:?}", self.memory[0x95]);
-                break;
-            }
-        }
-    }
 }
+
 
 fn add_a_r8(a: &Cell<u8>, r8: R8OrMem, flags: &Flags) {
     let r8 = match r8 {

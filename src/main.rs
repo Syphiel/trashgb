@@ -3,12 +3,13 @@ mod ppu;
 mod registers;
 
 use cpu::Cpu;
+use pixels::{Pixels, SurfaceTexture};
 use std::fs::File;
 use std::io::BufReader;
 use std::io::Read;
-use pixels::{Pixels, SurfaceTexture};
+use std::time::{Duration, Instant};
 use winit::dpi::LogicalSize;
-use winit::event::{Event, WindowEvent};
+use winit::event::{Event, StartCause, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 
@@ -25,14 +26,13 @@ fn main() {
     };
 
     let mut cpu = Cpu::new();
-    // let game = File::open("./roms/tests/03-op sp,hl.gb").unwrap();
+    // let game = File::open("./roms/tests/02-interrupts.gb").unwrap();
     let game = File::open("./roms/tetris.gb").unwrap();
 
     for (index, byte) in BufReader::new(game).bytes().enumerate() {
         if index >= 0x100 {
             cpu.memory.push(byte.unwrap());
-        }
-        else {
+        } else {
             cpu.bootstrap.push(byte.unwrap());
         }
     }
@@ -46,13 +46,8 @@ fn main() {
     };
 
     event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Poll;
         match event {
-            Event::MainEventsCleared => {
-                if cpu.game_loop(pixels.frame_mut()) {
-                    pixels.render().unwrap();
-                }
-            }
+            Event::MainEventsCleared => {}
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
@@ -65,10 +60,17 @@ fn main() {
             } => {
                 let _ = pixels.resize_surface(size.width, size.height);
             }
-            Event::RedrawRequested(_) => {
+            Event::NewEvents(StartCause::Init) => {
+                *control_flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(16));
                 pixels.render().unwrap();
             }
-            _ => (),
+            Event::NewEvents(StartCause::ResumeTimeReached {..}) => {
+                *control_flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(16));
+                if cpu.game_loop(pixels.frame_mut()) {
+                    pixels.render().unwrap();
+                }
+            }
+            Event::RedrawRequested(_) => { } _ => {}
         }
     });
 }
