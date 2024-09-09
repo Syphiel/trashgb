@@ -127,7 +127,7 @@ impl Flags {
             | (self.carry.get() as u8) << 4
     }
 
-    pub fn from_u8(&self, value: u8) {
+    pub fn set_from_u8(&self, value: u8) {
         self.zero.set((value >> 7 & 0b1) == 1);
         self.subtract.set((value >> 6 & 0b1) == 1);
         self.half_carry.set((value >> 5 & 0b1) == 1);

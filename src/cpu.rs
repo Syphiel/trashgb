@@ -585,7 +585,7 @@ impl Cpu {
                         // ## println!("{:#04x}: ld a, (c)", self.pc);
                         let a = &self.registers.a;
                         let c = self.registers.c.get() as u16;
-                        let c = self.mmu.read_byte(0xFF00 as u16 + c);
+                        let c = self.mmu.read_byte(0xFF00_u16 + c);
                         ld_a_c(a, c);
                         self.pc += 1;
                         return 2;
@@ -834,7 +834,7 @@ impl Cpu {
                                 let lo = self.mmu.read_byte(self.sp);
                                 let hi = self.mmu.read_byte(self.sp + 1);
                                 self.registers.a.set(hi);
-                                self.registers.flags.from_u8(lo);
+                                self.registers.flags.set_from_u8(lo);
                             }
                             _ => {
                                 let register = self.registers.get_r16stk(register);
@@ -895,6 +895,8 @@ impl Cpu {
                         self.mmu.write_word(self.sp - 2, self.pc);
                         self.sp -= 2;
                         self.pc = 0x40;
+                    } else {
+                        // TODO: Implement other interrupts
                     }
                 }
             }
@@ -1253,7 +1255,7 @@ fn sbc_a_imm8(r8: &Cell<u8>, imm8: u8, flags: &Flags) {
     flags.zero.set(result == 0);
     flags.subtract.set(true);
 
-    r8.set(result as u8);
+    r8.set(result);
 }
 
 fn and_a_imm8(a: &Cell<u8>, imm8: u8, flags: &Flags) {

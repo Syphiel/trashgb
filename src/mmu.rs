@@ -85,6 +85,13 @@ impl Mmu {
         if address == 0x2000 {
             return;
         }
+        if address == 0xFF46 {
+            let start = (value as u16) << 8;
+            for i in 0..0xA0 {
+                self.write_byte(0xFE00 + i, self.read_byte(start + i));
+            }
+            return;
+        }
         match address {
             0x0000..=0x3FFF => {}
             0x4000..=0x7FFF => {}
@@ -125,13 +132,17 @@ impl Mmu {
         }
     }
 
-    pub fn get_tile_data<'a>(&'a self) -> &'a [u8; 0x1000] {
+    pub fn get_tile_data(&self) -> &[u8; 0x1000] {
         // TODO: Check FF40 bit 4
         self.vram[0..0x1000].try_into().unwrap()
     }
 
-    pub fn get_tile_map<'a>(&'a self) -> &'a [u8; 0x400] {
+    pub fn get_tile_map(&self) -> &[u8; 0x400] {
         // TODO: Check FF40 bit 4
         self.vram[0x1800..0x1C00].try_into().unwrap()
+    }
+
+    pub fn get_oam(&self) -> &[u8; 0xA0] {
+        &self.oam
     }
 }
