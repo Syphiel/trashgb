@@ -1,12 +1,11 @@
 mod cpu;
+mod mmu;
 mod ppu;
 mod registers;
 
 use cpu::Cpu;
 use pixels::{Pixels, SurfaceTexture};
 use std::fs::File;
-use std::io::BufReader;
-use std::io::Read;
 use std::time::{Duration, Instant};
 use winit::dpi::LogicalSize;
 use winit::event::{Event, StartCause, WindowEvent};
@@ -28,16 +27,7 @@ fn main() {
     let mut cpu = Cpu::new();
     // let game = File::open("./roms/tests/02-interrupts.gb").unwrap();
     let game = File::open("./roms/tetris.gb").unwrap();
-
-    for (index, byte) in BufReader::new(game).bytes().enumerate() {
-        if index >= 0x100 {
-            cpu.memory.push(byte.unwrap());
-        } else {
-            cpu.bootstrap.push(byte.unwrap());
-        }
-    }
-    cpu.memory.resize(0x10000, 0u8);
-    cpu.memory[0xFF00] = 0xF; // TODO: Implement joypad
+    cpu.mmu.load_game(game);
 
     let mut pixels = {
         let window_size = window.inner_size();

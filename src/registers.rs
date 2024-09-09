@@ -138,7 +138,7 @@ impl Flags {
 pub enum R8OrMem<'a> {
     R8(&'a Cell<u8>),
     Mem(&'a mut u8),
-    Ptr(usize),
+    Ptr(u16),
 }
 
 pub enum R16OrSP<'a> {
@@ -186,7 +186,7 @@ impl Registers {
             R8::E => R8OrMem::R8(&self.e),
             R8::H => R8OrMem::R8(&self.h),
             R8::L => R8OrMem::R8(&self.l),
-            R8::M => R8OrMem::Ptr((self.h.get() as usize) << 8 | self.l.get() as usize),
+            R8::M => R8OrMem::Ptr((self.h.get() as u16) << 8 | self.l.get() as u16),
         }
     }
 

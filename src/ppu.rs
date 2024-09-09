@@ -1,3 +1,7 @@
+#![allow(dead_code)]
+
+use crate::mmu::Mmu;
+
 #[derive(Debug)]
 pub struct Ppu {
     pub frame_buffer: [u8; 160 * 144 * 4],
@@ -69,7 +73,10 @@ pub fn draw_sprites(oam_table: &[u8], tiles: &[u8], line: u8, output: &mut [u8])
     }
 }
 
-pub fn draw_scanline(tiles: &[u8], tilemap: &[u8], frame: &mut [u8], scx: u8, scy: u8, line: u8) {
+pub fn draw_scanline(mapper: &Mmu, frame: &mut [u8], scx: u8, scy: u8, line: u8) {
+    let tiles = mapper.get_tile_data();
+    let tilemap = mapper.get_tile_map();
+
     let start = line as usize * 160 * 4;
     let end = start + 160 * 4;
     // let sprites = &mut [0u8; 160 * 4];
