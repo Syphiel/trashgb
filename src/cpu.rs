@@ -197,6 +197,10 @@ impl Cpu {
                     }
                     self.pc += 2;
                     return 2;
+                } else if opcode == 0b0001_0000 {
+                    // ## println!("{:#04x}: stop", self.pc);
+                    self.pc += 2;
+                    return 1;
                 } else {
                     match opcode & 0b0000_1111 {
                         0b0001 => {
@@ -431,6 +435,10 @@ impl Cpu {
                     (R8OrMem::R8(_), R8OrMem::Ptr(ptr)) => {
                         (source, R8OrMem::Mem(self.mmu.get_mut_byte(*ptr)))
                     }
+                    (R8OrMem::Ptr(src), R8OrMem::Ptr(ptr)) => (
+                        R8OrMem::Ptr(self.mmu.read_byte(*src) as u16),
+                        R8OrMem::Mem(self.mmu.get_mut_byte(*ptr)),
+                    ),
                     _ => (source, dest),
                 };
                 ld_r8_r8(dest, source);
@@ -887,14 +895,25 @@ impl Cpu {
                     self.state = State::Running;
                 }
                 ticks += self.step() as u32;
-                if self.ime && (self.mmu.read_byte(0xFFFF) & self.mmu.read_byte(0xFF0F)) != 0 {
+                if self.ime {
                     if self.mmu.read_byte(0xFFFF) & self.mmu.read_byte(0xFF0F) & 0b0000_0001 != 0 {
+                        /* V-Blank interrupt */
                         self.ime = false;
                         self.mmu
                             .write_byte(0xFF0F, self.mmu.read_byte(0xFF0F) & !0b0000_0001);
                         self.mmu.write_word(self.sp - 2, self.pc);
                         self.sp -= 2;
                         self.pc = 0x40;
+                    } else if self.mmu.read_byte(0xFFFF) & self.mmu.read_byte(0xFF0F) & 0b0000_0010
+                        != 0
+                    {
+                        /* LCD STAT interrupt */
+                        self.ime = false;
+                        self.mmu
+                            .write_byte(0xFF0F, self.mmu.read_byte(0xFF0F) & !0b0000_0010);
+                        self.mmu.write_word(self.sp - 2, self.pc);
+                        self.sp -= 2;
+                        self.pc = 0x48;
                     } else {
                         // TODO: Implement other interrupts
                     }
@@ -904,11 +923,15 @@ impl Cpu {
             if line < 144 {
                 let scx = self.mmu.read_byte(0xFF43);
                 let scy = self.mmu.read_byte(0xFF42);
-                ppu::draw_scanline(
-                    &self.mmu, frame, scx, scy, line,
-                );
+                ppu::draw_scanline(&self.mmu, frame, scx, scy, line);
             }
-            if line == 144 {
+
+            if line + 1 == self.mmu.read_byte(0xFF45) && self.mmu.read_byte(0xFFFF) & 0b0000_0010 != 0 {
+                self.mmu
+                    .write_byte(0xFF0F, self.mmu.read_byte(0xFF0F) | 0b0000_0010);
+            }
+
+            if line == 144 && self.mmu.read_byte(0xFFFF) & 0b0000_0001 != 0 {
                 self.mmu
                     .write_byte(0xFF0F, self.mmu.read_byte(0xFF0F) | 0b0000_0001);
             }
@@ -1052,7 +1075,7 @@ fn ld_r8_r8(dest: R8OrMem, source: R8OrMem) {
     let source = match source {
         R8OrMem::R8(source) => source.get(),
         R8OrMem::Mem(source) => *source,
-        R8OrMem::Ptr(_) => panic!("Pointer not supported"),
+        R8OrMem::Ptr(mem) => mem as u8,
     };
 
     match dest {

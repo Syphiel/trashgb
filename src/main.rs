@@ -5,6 +5,7 @@ mod registers;
 
 use cpu::Cpu;
 use pixels::{Pixels, SurfaceTexture};
+use std::env;
 use std::fs::File;
 use std::time::{Duration, Instant};
 use winit::dpi::LogicalSize;
@@ -25,8 +26,8 @@ fn main() {
     };
 
     let mut cpu = Cpu::new();
-    // let game = File::open("./roms/tests/02-interrupts.gb").unwrap();
-    let game = File::open("./roms/tetris.gb").unwrap();
+    let filename = env::args().nth(1).unwrap();
+    let game = File::open(filename).unwrap();
     cpu.mmu.load_game(game);
 
     let mut pixels = {

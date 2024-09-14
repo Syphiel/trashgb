@@ -20,39 +20,104 @@ impl Ppu {
 }
 
 #[derive(Debug)]
+pub enum Palette {
+    White,
+    LightGray,
+    DarkGray,
+    Black,
+}
+
+impl Palette {
+    pub fn from_u8(value: u8) -> [Self; 4] {
+        (0..4)
+            .map(|i| match (value >> (i * 2)) & 0b11 {
+                0 => Self::White,
+                1 => Self::LightGray,
+                2 => Self::DarkGray,
+                3 => Self::Black,
+                _ => unreachable!(),
+            })
+            .collect::<Vec<Palette>>()
+            .try_into()
+            .unwrap()
+    }
+}
+
+#[derive(Debug)]
 pub struct ObjectAttribute {
     pub y: i16,
     pub x: i16,
     pub tile: u8,
-    pub flags: u8,
+    pub priority: bool,
+    pub y_flip: bool,
+    pub x_flip: bool,
+    pub palette: usize,
 }
 
-pub fn draw_sprites(mapper: &Mmu, tiles: &[u8], line: u8, output: &mut [u8]) {
+impl ObjectAttribute {
+    pub fn from_bytes(bytes: [u8; 4]) -> Self {
+        Self {
+            y: bytes[0] as i16 - 16,
+            x: bytes[1] as i16 - 8,
+            tile: bytes[2],
+            priority: bytes[3] >> 7 == 1,
+            y_flip: bytes[3] >> 6 & 0b1 == 1,
+            x_flip: bytes[3] >> 5 & 0b1 == 1,
+            palette: (bytes[3] >> 4 & 0b1 == 1) as usize,
+        }
+    }
+}
+
+pub fn draw_sprites(mapper: &Mmu, line: u8, output: &mut [u8]) {
+    let tiles = mapper.get_oam_tile_data();
+    let offset = if mapper.get_obj_size() { 16 } else { 8 };
     let oam_table = mapper.get_oam();
     let mut tile_count = 0;
     let line = line as i16;
 
-    for sprite in oam_table.chunks_exact(4).map(|sprite| ObjectAttribute {
-        y: sprite[0] as i16 - 16,
-        x: sprite[1] as i16 - 8,
-        tile: sprite[2],
-        flags: sprite[3],
-    }) {
-        if sprite.y >= 144 || sprite.y == 0 || sprite.x >= 160 || sprite.x == 0 {
+    for sprite in oam_table
+        .chunks_exact(4)
+        .map(|sprite| ObjectAttribute::from_bytes(sprite.try_into().unwrap()))
+    {
+        if sprite.y >= 144 || sprite.y == -16 {
             continue;
         }
-        if line > sprite.y + 8 || line < sprite.y {
+        if line >= sprite.y + offset || line < sprite.y {
+            continue;
+        }
+        if sprite.x >= 160 || sprite.x == -8  {
+            tile_count += 1;
             continue;
         }
 
-        let tile_line = line - sprite.y;
-        let tile_start = sprite.tile as usize * 16 + (tile_line as usize * 2);
+        let tile_line = match sprite.y_flip {
+            true => (offset - (line - sprite.y) - 1) % offset,
+            false => line - sprite.y,
+        };
+
+        let tile_start = match offset {
+            8 => sprite.tile as usize * 16 + (tile_line as usize * 2),
+            16 => (sprite.tile & 0xFE) as usize * 16 + (tile_line as usize * 2),
+            _ => unreachable!(),
+        };
+
         let tile_end = tile_start + 2;
-        let tile = &tiles[tile_start..tile_end];
+
+        let tile = match sprite.x_flip {
+            true => {
+                let mut tile = [0u8; 2];
+                for i in 0..8 {
+                    tile[0] |= (tiles[tile_start] >> i & 0b1) << (7 - i);
+                    tile[1] |= (tiles[tile_start + 1] >> i & 0b1) << (7 - i);
+                }
+                tile
+            }
+            false => tiles[tile_start..tile_end].try_into().unwrap(),
+        };
 
         for x in 0..8 {
             if sprite.x + x >= 160 {
-                break;
+                continue;
             }
             if sprite.x + x < 0 {
                 continue;
@@ -60,58 +125,88 @@ pub fn draw_sprites(mapper: &Mmu, tiles: &[u8], line: u8, output: &mut [u8]) {
             let start = (sprite.x as usize + x as usize) * 4;
             let end = start + 4;
 
-            output[start..end].copy_from_slice(
-                match (tile[0] >> (7 - x) & 0b1) << 1 | (tile[1] >> (7 - x) & 0b1) {
-                    0 => &[255, 255, 255, 255],
-                    1 => &[192, 192, 192, 255],
-                    2 => &[96, 96, 96, 255],
-                    3 => &[0, 0, 0, 255],
-                    _ => unreachable!(),
-                },
-            );
+            let color = ((tile[1] >> (7 - x) & 0b1) << 1) | (tile[0] >> (7 - x) & 0b1);
+
+            if color != 0 {
+                output[start..end].copy_from_slice(
+                    match mapper.get_obj_palette(sprite.palette)[color as usize] {
+                        Palette::White => &[232, 252, 204, 255],
+                        Palette::LightGray => &[172, 212, 144, 255],
+                        Palette::DarkGray => &[84, 140, 112, 255],
+                        Palette::Black => &[20, 44, 56, 255],
+                    },
+                );
+                if sprite.priority {
+                    output[start + 3] = 128;
+                }
+            }
         }
 
         tile_count += 1;
-        if tile_count > 10 {
+        if tile_count >= 10 {
             break;
         }
     }
 }
 
 pub fn draw_scanline(mapper: &Mmu, frame: &mut [u8], scx: u8, scy: u8, line: u8) {
-    let tiles = mapper.get_tile_data();
-    let tilemap = mapper.get_tile_map();
+    let tiles = mapper.get_bg_tile_data();
+    let tilemap = mapper.get_bg_tile_map();
     let sprites = &mut [0u8; 160 * 4];
 
     let start = line as usize * 160 * 4;
     let end = start + 160 * 4;
 
-    // TODO: Check if objects enabled
-    draw_sprites(&mapper, tiles, line, sprites);
+    if mapper.get_obj_enable() {
+        draw_sprites(mapper, line, sprites);
+    }
     let sprites = sprites.chunks_exact(4);
 
-    for (real_idx, (pixel, sprite)) in frame[start..end].chunks_exact_mut(4).zip(sprites).enumerate() {
+    for (real_idx, (pixel, sprite)) in frame[start..end]
+        .chunks_exact_mut(4)
+        .zip(sprites)
+        .enumerate()
+    {
         if sprite.iter().sum::<u8>() != 0 {
             pixel.copy_from_slice(sprite);
+            if pixel[3] == 255 {
+                continue;
+            }
+        }
+
+        if !mapper.get_bg_enable() {
+            pixel.copy_from_slice(&[232, 252, 204, 255]);
             continue;
         }
+
         let real_idx = real_idx + (start / 4);
         let idx =
             (real_idx as u16 % 160 + scx as u16) + ((real_idx as u16 / 160 + scy as u16) * 256);
         let y = idx / 256;
         let x = idx % 256;
-        let tile = tilemap[((y / 8) * 32 + x / 8) as usize] as usize * 16;
-        let tile = &tiles[tile..tile + 16];
+        let tile = tilemap[((y / 8) * 32 + x / 8) as usize];
+        let tile = match mapper.get_tile_mode() {
+            true => &tiles[tile as usize * 16..tile as usize * 16 + 16],
+            false => {
+                let tile = tile as i8 as i16;
+                let tile = (tile * 16 + 0x800) as usize;
+                &tiles[tile..tile + 16]
+            }
+        };
+        // let tile = &tiles[tile..tile + 16];
         let y = y % 8;
         let x = x % 8;
-        let z = ((tile[y as usize * 2] >> (7 - x) & 0b1) << 1)
-            | (tile[y as usize * 2 + 1] >> (7 - x) & 0b1);
-        pixel.copy_from_slice(match z {
-            0 => &[255, 255, 255, 255],
-            1 => &[192, 192, 192, 255],
-            2 => &[96, 96, 96, 255],
-            3 => &[0, 0, 0, 255],
-            _ => unreachable!(),
+        let z = ((tile[y as usize * 2 + 1] >> (7 - x) & 0b1) << 1)
+            | (tile[y as usize * 2] >> (7 - x) & 0b1);
+        if z == 0 && pixel[3] == 128 {
+            pixel[3] = 255;
+            continue;
+        }
+        pixel.copy_from_slice(match mapper.get_bg_palette()[z as usize] {
+            Palette::White => &[232, 252, 204, 255],
+            Palette::LightGray => &[172, 212, 144, 255],
+            Palette::DarkGray => &[84, 140, 112, 255],
+            Palette::Black => &[20, 44, 56, 255],
         });
     }
 }
