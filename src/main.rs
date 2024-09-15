@@ -36,32 +36,31 @@ fn main() {
         Pixels::new(160, 144, surface_texture).unwrap()
     };
 
-    event_loop.run(move |event, _, control_flow| {
-        match event {
-            Event::MainEventsCleared => {}
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } => {
-                *control_flow = ControlFlow::Exit;
-            }
-            Event::WindowEvent {
-                event: WindowEvent::Resized(size),
-                ..
-            } => {
-                let _ = pixels.resize_surface(size.width, size.height);
-            }
-            Event::NewEvents(StartCause::Init) => {
-                *control_flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(16));
+    event_loop.run(move |event, _, control_flow| match event {
+        Event::MainEventsCleared => {}
+        Event::WindowEvent {
+            event: WindowEvent::CloseRequested,
+            ..
+        } => {
+            *control_flow = ControlFlow::Exit;
+        }
+        Event::WindowEvent {
+            event: WindowEvent::Resized(size),
+            ..
+        } => {
+            let _ = pixels.resize_surface(size.width, size.height);
+        }
+        Event::NewEvents(StartCause::Init) => {
+            *control_flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(16));
+            pixels.render().unwrap();
+        }
+        Event::NewEvents(StartCause::ResumeTimeReached { .. }) => {
+            *control_flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(16));
+            if cpu.game_loop(pixels.frame_mut()) {
                 pixels.render().unwrap();
             }
-            Event::NewEvents(StartCause::ResumeTimeReached {..}) => {
-                *control_flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(16));
-                if cpu.game_loop(pixels.frame_mut()) {
-                    pixels.render().unwrap();
-                }
-            }
-            Event::RedrawRequested(_) => { } _ => {}
         }
+        Event::RedrawRequested(_) => {}
+        _ => {}
     });
 }

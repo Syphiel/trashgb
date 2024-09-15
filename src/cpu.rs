@@ -416,7 +416,7 @@ impl Cpu {
             0b01 => {
                 /* Block 1 */
                 // ## println!("{:#04x}: ld r8, r8", self.pc);
-                
+
                 if opcode == 0b0111_0110 {
                     // ## println!("{:#04x}: halt", self.pc);
                     self.state = State::Halted;
