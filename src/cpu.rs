@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use crate::mmu::Mmu;
 use crate::ppu::{self, Ppu};
 use crate::registers::{Flags, R16OrSP, R8OrMem, Registers, R16, R8};
