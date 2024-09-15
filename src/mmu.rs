@@ -29,6 +29,8 @@ pub struct Mmu {
     rom_bank: u8,
     ram_bank: u8,
     rom_mode: u8,
+    // Window
+    window_counter: u8,
 }
 
 impl Mmu {
@@ -57,6 +59,8 @@ impl Mmu {
             rom_bank: 1,
             ram_bank: 0,
             rom_mode: 0,
+
+            window_counter: 0,
         }
     }
 
@@ -227,8 +231,20 @@ impl Mmu {
         self.io[0x40] & 0b0000_0001 == 0b0000_0001
     }
 
+    pub fn get_window_enable(&self) -> bool {
+        self.io[0x40] & 0b0010_0000 == 0b0010_0000
+    }
+
+    pub fn get_obj_enable(&self) -> bool {
+        self.io[0x40] & 0b0000_0010 == 0b0000_0010
+    }
+
     pub fn get_bg_map_mode(&self) -> bool {
         self.io[0x40] & 0b0000_1000 == 0b0000_1000
+    }
+
+    pub fn get_window_map_mode(&self) -> bool {
+        self.io[0x40] & 0b0100_0000 == 0b0100_0000
     }
 
     pub fn get_tile_mode(&self) -> bool {
@@ -251,16 +267,24 @@ impl Mmu {
         }
     }
 
+    pub fn get_window_tile_map(&self) -> &[u8; 0x400] {
+        if self.get_window_map_mode() {
+            self.vram[0x1C00..0x2000].try_into().unwrap()
+        } else {
+            self.vram[0x1800..0x1C00].try_into().unwrap()
+        }
+    }
+
+    pub fn get_window_pos(&self) -> (u8, u8) {
+        (self.io[0x4A], self.io[0x4B])
+    }
+
     pub fn get_oam(&self) -> &[u8; 0xA0] {
         &self.oam
     }
 
     pub fn get_oam_tile_data(&self) -> &[u8; 0x1000] {
         self.vram[0..0x1000].try_into().unwrap()
-    }
-
-    pub fn get_obj_enable(&self) -> bool {
-        self.io[0x40] & 0b0000_0010 == 0b0000_0010
     }
 
     pub fn get_obj_size(&self) -> bool {
@@ -273,5 +297,13 @@ impl Mmu {
 
     pub fn get_obj_palette(&self, palette: usize) -> [Palette; 4] {
         Palette::from_u8(self.io[0x48 + (palette & 0x1)])
+    }
+
+    pub fn get_window_counter(&self) -> u8 {
+        self.window_counter
+    }
+
+    pub fn set_window_counter(&mut self, value: u8) {
+        self.window_counter = value;
     }
 }

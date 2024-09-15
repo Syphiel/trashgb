@@ -74,6 +74,7 @@ pub fn draw_sprites(mapper: &Mmu, line: u8, output: &mut [u8]) {
     let oam_table = mapper.get_oam();
     let mut tile_count = 0;
     let line = line as i16;
+    let mut x_values = Vec::<i16>::new();
 
     for sprite in oam_table
         .chunks_exact(4)
@@ -86,6 +87,11 @@ pub fn draw_sprites(mapper: &Mmu, line: u8, output: &mut [u8]) {
             continue;
         }
         if sprite.x >= 160 || sprite.x == -8  {
+            tile_count += 1;
+            continue;
+        }
+
+        if x_values.contains(&sprite.x) {
             tile_count += 1;
             continue;
         }
@@ -143,9 +149,50 @@ pub fn draw_sprites(mapper: &Mmu, line: u8, output: &mut [u8]) {
         }
 
         tile_count += 1;
+        x_values.push(sprite.x);
         if tile_count >= 10 {
             break;
         }
+    }
+}
+
+pub fn draw_window(mapper: &Mmu, line: u8, output: &mut [u8]) {
+    let tiles = mapper.get_bg_tile_data();
+    let tilemap = mapper.get_window_tile_map();
+    let (win_y, win_x) = mapper.get_window_pos();
+
+    if line < win_y {
+        return;
+    }
+
+    let y = mapper.get_window_counter();
+
+    for (index, pixel) in output.chunks_exact_mut(4).enumerate() {
+        if index < win_x  as usize - 7 {
+            continue;
+        }
+        let x = index - win_x as usize + 7;
+        let start = (y as usize / 8) * 32 + ((x as usize) / 8);
+        let start = tilemap[start] as usize;
+        let tile = match mapper.get_tile_mode() {
+            true => &tiles[start as usize * 16..start as usize * 16 + 16],
+            false => {
+                let start = start as i8 as i16;
+                let start = (start * 16 + 0x800) as usize;
+                &tiles[start..start + 16]
+            }
+        };
+        let y = y % 8;
+        let x = x % 8;
+        let z = ((tile[y as usize * 2 + 1] >> (7 - x) & 0b1) << 1)
+            | (tile[y as usize * 2] >> (7 - x) & 0b1);
+        
+        pixel.copy_from_slice(match mapper.get_bg_palette()[z as usize] {
+            Palette::White => &[232, 252, 204, 255],
+            Palette::LightGray => &[172, 212, 144, 255],
+            Palette::DarkGray => &[84, 140, 112, 255],
+            Palette::Black => &[20, 44, 56, 255],
+        });
     }
 }
 
@@ -153,6 +200,7 @@ pub fn draw_scanline(mapper: &Mmu, frame: &mut [u8], scx: u8, scy: u8, line: u8)
     let tiles = mapper.get_bg_tile_data();
     let tilemap = mapper.get_bg_tile_map();
     let sprites = &mut [0u8; 160 * 4];
+    let window = &mut [0u8; 160 * 4];
 
     let start = line as usize * 160 * 4;
     let end = start + 160 * 4;
@@ -160,11 +208,17 @@ pub fn draw_scanline(mapper: &Mmu, frame: &mut [u8], scx: u8, scy: u8, line: u8)
     if mapper.get_obj_enable() {
         draw_sprites(mapper, line, sprites);
     }
-    let sprites = sprites.chunks_exact(4);
+    if mapper.get_window_enable() {
+        draw_window(mapper, line, window);
+    }
 
-    for (real_idx, (pixel, sprite)) in frame[start..end]
+    let sprites = sprites.chunks_exact(4);
+    let window = window.chunks_exact(4);
+
+    for (real_idx, ((pixel, sprite), win)) in frame[start..end]
         .chunks_exact_mut(4)
         .zip(sprites)
+        .zip(window)
         .enumerate()
     {
         if sprite.iter().sum::<u8>() != 0 {
@@ -179,12 +233,32 @@ pub fn draw_scanline(mapper: &Mmu, frame: &mut [u8], scx: u8, scy: u8, line: u8)
             continue;
         }
 
+        if win.iter().sum::<u8>() != 0 {
+            match pixel[3] {
+                0 => {
+                    pixel.copy_from_slice(win);
+                    continue;
+                },
+                128 => {
+                    if win[0] != 232 {
+                        pixel.copy_from_slice(win);
+                        continue;
+                    }
+                },
+                _ => {
+                    pixel.copy_from_slice(win);
+                    continue;
+                },
+            };
+        }
+
         let real_idx = real_idx + (start / 4);
         let idx =
             (real_idx as u16 % 160 + scx as u16) + ((real_idx as u16 / 160 + scy as u16) * 256);
         let y = idx / 256;
         let x = idx % 256;
-        let tile = tilemap[((y / 8) * 32 + x / 8) as usize];
+        let tilenum = ((y / 8) * 32 + x / 8) as usize;
+        let tile = tilemap[tilenum];
         let tile = match mapper.get_tile_mode() {
             true => &tiles[tile as usize * 16..tile as usize * 16 + 16],
             false => {
@@ -193,7 +267,6 @@ pub fn draw_scanline(mapper: &Mmu, frame: &mut [u8], scx: u8, scy: u8, line: u8)
                 &tiles[tile..tile + 16]
             }
         };
-        // let tile = &tiles[tile..tile + 16];
         let y = y % 8;
         let x = x % 8;
         let z = ((tile[y as usize * 2 + 1] >> (7 - x) & 0b1) << 1)

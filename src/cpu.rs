@@ -17,7 +17,6 @@ enum AfterInstruction {
 
 #[derive(Debug, PartialEq)]
 pub enum State {
-    Bootstrap,
     Running,
     Halted,
 }
@@ -25,8 +24,6 @@ pub enum State {
 #[derive(Debug)]
 pub struct Cpu {
     pub registers: Registers,
-    pub bootstrap: Vec<u8>,
-    pub memory: Vec<u8>,
     pub pc: u16,
     pub sp: u16,
     pub last_frame: Instant,
@@ -40,15 +37,13 @@ impl Cpu {
     pub fn new() -> Self {
         Cpu {
             registers: Registers::new(),
-            bootstrap: vec![],
-            memory: include_bytes!("../roms/bootstrap.gb").to_vec(),
             pc: 0,
             sp: 0,
             last_frame: Instant::now(),
             mmu: Mmu::new(),
             ppu: Ppu::new(),
             ime: false,
-            state: State::Bootstrap,
+            state: State::Running,
         }
     }
 
@@ -421,6 +416,13 @@ impl Cpu {
             0b01 => {
                 /* Block 1 */
                 // ## println!("{:#04x}: ld r8, r8", self.pc);
+                
+                if opcode == 0b0111_0110 {
+                    // ## println!("{:#04x}: halt", self.pc);
+                    self.state = State::Halted;
+                    self.pc += 1;
+                    return 1;
+                }
 
                 let dest = R8::from_u8((opcode & 0b0011_1000) >> 3);
                 let dest = self.registers.get_r8(dest);
@@ -888,14 +890,20 @@ impl Cpu {
     pub fn game_loop(&mut self, frame: &mut [u8]) -> bool {
         self.last_frame = Instant::now();
 
+        frame.fill(0);
         let mut ticks = 0;
+        self.mmu.set_window_counter(0);
         for line in 0..154 {
             while ticks < 456 {
-                if self.pc == 0x100 {
-                    self.state = State::Running;
+                if self.state != State::Halted {
+                    ticks += self.step() as u32;
+                } else {
+                    ticks += 1;
                 }
-                ticks += self.step() as u32;
                 if self.ime {
+                    if self.mmu.read_byte(0xFFFF) & self.mmu.read_byte(0xFF0F) != 0 {
+                        self.state = State::Running;
+                    }
                     if self.mmu.read_byte(0xFFFF) & self.mmu.read_byte(0xFF0F) & 0b0000_0001 != 0 {
                         /* V-Blank interrupt */
                         self.ime = false;
@@ -924,17 +932,30 @@ impl Cpu {
                 let scx = self.mmu.read_byte(0xFF43);
                 let scy = self.mmu.read_byte(0xFF42);
                 ppu::draw_scanline(&self.mmu, frame, scx, scy, line);
+                let window_line = self.mmu.get_window_counter();
+                let (wy, wx) = self.mmu.get_window_pos();
+                if self.mmu.get_window_enable() && wy <= line && wy < 144 && wx < 167 {
+                    self.mmu.set_window_counter(window_line + 1);
+                }
             }
 
-            if line + 1 == self.mmu.read_byte(0xFF45) && self.mmu.read_byte(0xFFFF) & 0b0000_0010 != 0 {
+            if line + 1 == self.mmu.read_byte(0xFF45)
+                && self.mmu.read_byte(0xFFFF) & 0b0000_0010 != 0
+            {
                 self.mmu
                     .write_byte(0xFF0F, self.mmu.read_byte(0xFF0F) | 0b0000_0010);
+                self.mmu
+                    .write_byte(0xFF41, self.mmu.read_byte(0xFF41) | 0b0000_0100)
+            } else {
+                self.mmu
+                    .write_byte(0xFF41, self.mmu.read_byte(0xFF41) & !0b0000_0100)
             }
 
             if line == 144 && self.mmu.read_byte(0xFFFF) & 0b0000_0001 != 0 {
                 self.mmu
                     .write_byte(0xFF0F, self.mmu.read_byte(0xFF0F) | 0b0000_0001);
             }
+
             self.mmu.write_byte(0xFF44, line);
         }
         true

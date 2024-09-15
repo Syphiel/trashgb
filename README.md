@@ -13,3 +13,6 @@ blarrg instruction tests:
 [X] 09-op r,r.gb
 [X] 10-bit ops.gb
 [X] 11-op a,(hl).gb
+
+Other tests:
+[X] dmg-acid2
