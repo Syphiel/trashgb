@@ -920,8 +920,36 @@ impl Cpu {
                         self.mmu.write_word(self.sp - 2, self.pc);
                         self.sp -= 2;
                         self.pc = 0x48;
-                    } else {
-                        // TODO: Implement other interrupts
+                    } else if self.mmu.read_byte(0xFFFF) & self.mmu.read_byte(0xFF0F) & 0b0000_0100
+                        != 0
+                    {
+                        /* Timer interrupt */
+                        self.ime = false;
+                        self.mmu
+                            .write_byte(0xFF0F, self.mmu.read_byte(0xFF0F) & !0b0000_0100);
+                        self.mmu.write_word(self.sp - 2, self.pc);
+                        self.sp -= 2;
+                        self.pc = 0x50;
+                    } else if self.mmu.read_byte(0xFFFF) & self.mmu.read_byte(0xFF0F) & 0b0000_1000
+                        != 0
+                    {
+                        /* Serial interrupt */
+                        self.ime = false;
+                        self.mmu
+                            .write_byte(0xFF0F, self.mmu.read_byte(0xFF0F) & !0b0000_1000);
+                        self.mmu.write_word(self.sp - 2, self.pc);
+                        self.sp -= 2;
+                        self.pc = 0x58;
+                    } else if self.mmu.read_byte(0xFFFF) & self.mmu.read_byte(0xFF0F) & 0b0001_0000
+                        != 0
+                    {
+                        /* Joypad interrupt */
+                        self.ime = false;
+                        self.mmu
+                            .write_byte(0xFF0F, self.mmu.read_byte(0xFF0F) & !0b0001_0000);
+                        self.mmu.write_word(self.sp - 2, self.pc);
+                        self.sp -= 2;
+                        self.pc = 0x60;
                     }
                 }
             }
