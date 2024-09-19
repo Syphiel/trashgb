@@ -29,8 +29,9 @@ pub struct Mmu {
     rom_bank: u8,
     ram_bank: u8,
     rom_mode: u8,
-    // Window
+    // Misc
     window_counter: u8,
+    timer: u16,
 }
 
 impl Mmu {
@@ -61,6 +62,7 @@ impl Mmu {
             rom_mode: 0,
 
             window_counter: 0,
+            timer: 0,
         }
     }
 
@@ -144,9 +146,9 @@ impl Mmu {
     }
 
     pub fn write_byte(&mut self, address: u16, value: u8) {
-        // if address == 0x2000 {
-        //     return;
-        // }
+        if address == 0xFF04 {
+            self.timer = 0;
+        }
         if address == 0xFF46 {
             /* DMA Transfer */
             let start = (value as u16) << 8;
@@ -305,5 +307,34 @@ impl Mmu {
 
     pub fn set_window_counter(&mut self, value: u8) {
         self.window_counter = value;
+    }
+
+    pub fn increment_timer(&mut self, cycles: u32) -> bool {
+        let cycles = cycles * 4;
+        let timer = self.timer.wrapping_add(cycles as u16);
+        let shift = match self.io[0x07] & 0b0000_0011 {
+            0b00 => 9,
+            0b01 => 3,
+            0b10 => 5,
+            0b11 => 7,
+            _ => unreachable!(),
+        };
+        // if (self.timer >> shift) & 0b1 == 0b1
+        //     && (timer >> shift) & 0b1 == 0b0
+        if timer & (!0_u16 << shift) != self.timer & (!0_u16 << shift)
+            && self.io[0x07] & 0b100 == 0b100
+        {
+            self.io[0x05] = self.io[0x05].wrapping_add(1);
+            if self.io[0x05] == 0 {
+                self.io[0x05] = self.io[0x06] + 1;
+                self.timer = timer;
+                self.io[0x04] = (self.timer >> 8) as u8;
+                return true;
+            }
+        }
+        self.timer = timer;
+        // self.write_byte(0xFF04, (self.timer >> 8) as u8);
+        self.io[0x04] = (self.timer >> 8) as u8;
+        false
     }
 }

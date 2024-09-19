@@ -894,9 +894,16 @@ impl Cpu {
         for line in 0..154 {
             while ticks < 456 {
                 if self.state != State::Halted {
-                    ticks += self.step() as u32;
+                    let duration = self.step() as u32;
+                    ticks += duration;
+                    if self.mmu.increment_timer(duration) {
+                        self.mmu.write_byte(0xFF0F, self.mmu.read_byte(0xFF0F) | 0b0000_0100);
+                    }
                 } else {
                     ticks += 1;
+                    if self.mmu.increment_timer(1) {
+                        self.mmu.write_byte(0xFF0F, self.mmu.read_byte(0xFF0F) | 0b0000_0100);
+                    }
                 }
                 if self.ime {
                     if self.mmu.read_byte(0xFFFF) & self.mmu.read_byte(0xFF0F) != 0 {
@@ -950,6 +957,10 @@ impl Cpu {
                         self.mmu.write_word(self.sp - 2, self.pc);
                         self.sp -= 2;
                         self.pc = 0x60;
+                    }
+                } else if self.state == State::Halted {
+                    if self.mmu.read_byte(0xFFFF) & self.mmu.read_byte(0xFF0F) != 0 {
+                        self.state = State::Running;
                     }
                 }
             }
