@@ -4,6 +4,18 @@ use std::io::BufReader;
 use std::io::Read;
 
 #[derive(Debug)]
+pub struct Joypad {
+    a: bool,
+    b: bool,
+    start: bool,
+    select: bool,
+    up: bool,
+    down: bool,
+    left: bool,
+    right: bool,
+}
+
+#[derive(Debug)]
 pub struct Mmu {
     // Memory Map
     bootstrap: [u8; 0x100],
@@ -32,6 +44,46 @@ pub struct Mmu {
     // Misc
     window_counter: u8,
     timer: u16,
+    pub joypad: Joypad,
+}
+
+impl Joypad {
+    pub fn read_state(&self, select: bool) -> u8 {
+        match select {
+            true => {
+                let mut state = 0xF;
+                if self.a {
+                    state &= 0b1110;
+                }
+                if self.b {
+                    state &= 0b1101;
+                }
+                if self.select {
+                    state &= 0b1011;
+                }
+                if self.start {
+                    state &= 0b0111;
+                }
+                state
+            }
+            false => {
+                let mut state = 0xF;
+                if self.right {
+                    state &= 0b1110;
+                }
+                if self.left {
+                    state &= 0b1101;
+                }
+                if self.up {
+                    state &= 0b1011;
+                }
+                if self.down {
+                    state &= 0b0111;
+                }
+                state
+            }
+        }
+    }
 }
 
 impl Mmu {
@@ -63,6 +115,16 @@ impl Mmu {
 
             window_counter: 0,
             timer: 0,
+            joypad: Joypad {
+                a: false,
+                b: false,
+                start: false,
+                select: false,
+                up: false,
+                down: false,
+                left: false,
+                right: false,
+            },
         }
     }
 
@@ -108,8 +170,9 @@ impl Mmu {
 
     pub fn read_byte(&self, address: u16) -> u8 {
         if address == 0xFF00 {
-            return 0xF;
-        } // TODO: Implement joypad
+            let select = self.io[0x00] & 0b0001_0000 == 0b0001_0000;
+            return self.joypad.read_state(select);
+        }
         match address {
             0x0000..=0x00FF => {
                 if self.io[0x50] == 0x00 {
@@ -336,5 +399,53 @@ impl Mmu {
         // self.write_byte(0xFF04, (self.timer >> 8) as u8);
         self.io[0x04] = (self.timer >> 8) as u8;
         false
+    }
+    pub fn joypad_a(&mut self, pressed: bool) {
+        self.joypad.a = pressed;
+        if pressed {
+            self.io[0x0F] |= 0b0001_0000;
+        }
+    }
+    pub fn joypad_b(&mut self, pressed: bool) {
+        self.joypad.b = pressed;
+        if pressed {
+            self.io[0x0F] |= 0b0001_0000;
+        }
+    }
+    pub fn joypad_start(&mut self, pressed: bool) {
+        self.joypad.start = pressed;
+        if pressed {
+            self.io[0x0F] |= 0b0001_0000;
+        }
+    }
+    pub fn joypad_select(&mut self, pressed: bool) {
+        self.joypad.select = pressed;
+        if pressed {
+            self.io[0x0F] |= 0b0001_0000;
+        }
+    }
+    pub fn joypad_up(&mut self, pressed: bool) {
+        self.joypad.up = pressed;
+        if pressed {
+            self.io[0x0F] |= 0b0001_0000;
+        }
+    }
+    pub fn joypad_down(&mut self, pressed: bool) {
+        self.joypad.down = pressed;
+        if pressed {
+            self.io[0x0F] |= 0b0001_0000;
+        }
+    }
+    pub fn joypad_left(&mut self, pressed: bool) {
+        self.joypad.left = pressed;
+        if pressed {
+            self.io[0x0F] |= 0b0001_0000;
+        }
+    }
+    pub fn joypad_right(&mut self, pressed: bool) {
+        self.joypad.right = pressed;
+        if pressed {
+            self.io[0x0F] |= 0b0001_0000;
+        }
     }
 }

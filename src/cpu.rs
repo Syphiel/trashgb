@@ -609,18 +609,6 @@ impl Cpu {
                     0b1111_0000 => {
                         // ## println!("{:#04x}: ldh a, [imm8]", self.pc);
                         let imm8 = self.mmu.read_byte(self.pc + 1);
-                        if imm8 == 0x00 {
-                            // TODO: joystick input
-                            self.registers.a.set(0xef);
-                            self.pc += 2;
-                            return 3;
-                        }
-                        // else if imm8 == 0x44 {
-                        //     // TEMP: For testing
-                        //     self.registers.a.set(0x90);
-                        //     self.pc += 2;
-                        //     return 3;
-                        // }
                         let imm8 = self.mmu.read_byte(0xFF00 + imm8 as u16);
                         ldh_a_imm8(&self.registers.a, imm8);
                         self.pc += 2;
@@ -897,12 +885,14 @@ impl Cpu {
                     let duration = self.step() as u32;
                     ticks += duration;
                     if self.mmu.increment_timer(duration) {
-                        self.mmu.write_byte(0xFF0F, self.mmu.read_byte(0xFF0F) | 0b0000_0100);
+                        self.mmu
+                            .write_byte(0xFF0F, self.mmu.read_byte(0xFF0F) | 0b0000_0100);
                     }
                 } else {
                     ticks += 1;
                     if self.mmu.increment_timer(1) {
-                        self.mmu.write_byte(0xFF0F, self.mmu.read_byte(0xFF0F) | 0b0000_0100);
+                        self.mmu
+                            .write_byte(0xFF0F, self.mmu.read_byte(0xFF0F) | 0b0000_0100);
                     }
                 }
                 if self.ime {
@@ -958,10 +948,10 @@ impl Cpu {
                         self.sp -= 2;
                         self.pc = 0x60;
                     }
-                } else if self.state == State::Halted {
-                    if self.mmu.read_byte(0xFFFF) & self.mmu.read_byte(0xFF0F) != 0 {
-                        self.state = State::Running;
-                    }
+                } else if self.state == State::Halted
+                    && self.mmu.read_byte(0xFFFF) & self.mmu.read_byte(0xFF0F) != 0
+                {
+                    self.state = State::Running;
                 }
             }
             ticks = 0;
