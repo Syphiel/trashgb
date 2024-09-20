@@ -9,7 +9,7 @@ use std::env;
 use std::fs::File;
 use std::time::{Duration, Instant};
 use winit::dpi::LogicalSize;
-use winit::event::{Event, StartCause, WindowEvent, VirtualKeyCode};
+use winit::event::{Event, StartCause, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 
