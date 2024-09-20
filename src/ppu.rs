@@ -215,7 +215,7 @@ pub fn draw_scanline(mapper: &Mmu, frame: &mut [u8], scx: u8, scy: u8, line: u8)
         .zip(window)
         .enumerate()
     {
-        if sprite.iter().sum::<u8>() != 0 {
+        if sprite.iter().any(|x| *x != 0) {
             pixel.copy_from_slice(sprite);
             if pixel[3] == 255 {
                 continue;
