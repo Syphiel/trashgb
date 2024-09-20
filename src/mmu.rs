@@ -44,7 +44,7 @@ pub struct Mmu {
     // Misc
     window_counter: u8,
     timer: u16,
-    pub joypad: Joypad,
+    joypad: Joypad,
 }
 
 impl Joypad {
@@ -169,10 +169,6 @@ impl Mmu {
     }
 
     pub fn read_byte(&self, address: u16) -> u8 {
-        if address == 0xFF00 {
-            let select = self.io[0x00] & 0b0001_0000 == 0b0001_0000;
-            return self.joypad.read_state(select);
-        }
         match address {
             0x0000..=0x00FF => {
                 if self.io[0x50] == 0x00 {
@@ -209,6 +205,20 @@ impl Mmu {
     }
 
     pub fn write_byte(&mut self, address: u16, value: u8) {
+        if address == 0xFF00 {
+            self.io[0x00] = value;
+            self.io[0x00] = match (self.io[0x00] & 0b0011_0000) >> 4 {
+                0b00 => {
+                    ((self.io[0x0] & 0b1111_0000) + self.joypad.read_state(true))
+                        | self.joypad.read_state(false)
+                }
+                0b01 => (self.io[0x0] & 0b1111_0000) + self.joypad.read_state(true),
+                0b10 => (self.io[0x0] & 0b1111_0000) + self.joypad.read_state(false),
+                0b11 => self.io[0x00] | 0b0000_1111,
+                _ => unreachable!(),
+            };
+            return;
+        }
         if address == 0xFF04 {
             self.timer = 0;
         }
@@ -382,8 +392,6 @@ impl Mmu {
             0b11 => 7,
             _ => unreachable!(),
         };
-        // if (self.timer >> shift) & 0b1 == 0b1
-        //     && (timer >> shift) & 0b1 == 0b0
         if timer & (!0_u16 << shift) != self.timer & (!0_u16 << shift)
             && self.io[0x07] & 0b100 == 0b100
         {
@@ -396,54 +404,133 @@ impl Mmu {
             }
         }
         self.timer = timer;
-        // self.write_byte(0xFF04, (self.timer >> 8) as u8);
         self.io[0x04] = (self.timer >> 8) as u8;
         false
     }
     pub fn joypad_a(&mut self, pressed: bool) {
         self.joypad.a = pressed;
+        self.io[0x00] = match (self.io[0x00] & 0b0011_0000) >> 4 {
+            0b00 => {
+                ((self.io[0x0] & 0b1111_0000) + self.joypad.read_state(true))
+                    | self.joypad.read_state(false)
+            }
+            0b01 => (self.io[0x0] & 0b1111_0000) + self.joypad.read_state(true),
+            0b10 => (self.io[0x0] & 0b1111_0000) + self.joypad.read_state(false),
+            0b11 => self.io[0x00] | 0b0000_1111,
+            _ => unreachable!(),
+        };
         if pressed {
             self.io[0x0F] |= 0b0001_0000;
         }
     }
     pub fn joypad_b(&mut self, pressed: bool) {
         self.joypad.b = pressed;
+        self.io[0x00] = match (self.io[0x00] & 0b0011_0000) >> 4 {
+            0b00 => {
+                ((self.io[0x0] & 0b1111_0000) + self.joypad.read_state(true))
+                    | self.joypad.read_state(false)
+            }
+            0b01 => (self.io[0x0] & 0b1111_0000) + self.joypad.read_state(true),
+            0b10 => (self.io[0x0] & 0b1111_0000) + self.joypad.read_state(false),
+            0b11 => self.io[0x00] | 0b0000_1111,
+            _ => unreachable!(),
+        };
         if pressed {
             self.io[0x0F] |= 0b0001_0000;
         }
     }
     pub fn joypad_start(&mut self, pressed: bool) {
         self.joypad.start = pressed;
+        self.io[0x00] = match (self.io[0x00] & 0b0011_0000) >> 4 {
+            0b00 => {
+                ((self.io[0x0] & 0b1111_0000) + self.joypad.read_state(true))
+                    | self.joypad.read_state(false)
+            }
+            0b01 => (self.io[0x0] & 0b1111_0000) + self.joypad.read_state(true),
+            0b10 => (self.io[0x0] & 0b1111_0000) + self.joypad.read_state(false),
+            0b11 => self.io[0x00] | 0b0000_1111,
+            _ => unreachable!(),
+        };
         if pressed {
             self.io[0x0F] |= 0b0001_0000;
         }
     }
     pub fn joypad_select(&mut self, pressed: bool) {
         self.joypad.select = pressed;
+        self.io[0x00] = match (self.io[0x00] & 0b0011_0000) >> 4 {
+            0b00 => {
+                ((self.io[0x0] & 0b1111_0000) + self.joypad.read_state(true))
+                    | self.joypad.read_state(false)
+            }
+            0b01 => (self.io[0x0] & 0b1111_0000) + self.joypad.read_state(true),
+            0b10 => (self.io[0x0] & 0b1111_0000) + self.joypad.read_state(false),
+            0b11 => self.io[0x00] | 0b0000_1111,
+            _ => unreachable!(),
+        };
         if pressed {
             self.io[0x0F] |= 0b0001_0000;
         }
     }
     pub fn joypad_up(&mut self, pressed: bool) {
         self.joypad.up = pressed;
+        self.io[0x00] = match (self.io[0x00] & 0b0011_0000) >> 4 {
+            0b00 => {
+                ((self.io[0x0] & 0b1111_0000) + self.joypad.read_state(true))
+                    | self.joypad.read_state(false)
+            }
+            0b01 => (self.io[0x0] & 0b1111_0000) + self.joypad.read_state(true),
+            0b10 => (self.io[0x0] & 0b1111_0000) + self.joypad.read_state(false),
+            0b11 => self.io[0x00] | 0b0000_1111,
+            _ => unreachable!(),
+        };
         if pressed {
             self.io[0x0F] |= 0b0001_0000;
         }
     }
     pub fn joypad_down(&mut self, pressed: bool) {
         self.joypad.down = pressed;
+        self.io[0x00] = match (self.io[0x00] & 0b0011_0000) >> 4 {
+            0b00 => {
+                ((self.io[0x0] & 0b1111_0000) + self.joypad.read_state(true))
+                    | self.joypad.read_state(false)
+            }
+            0b01 => (self.io[0x0] & 0b1111_0000) + self.joypad.read_state(true),
+            0b10 => (self.io[0x0] & 0b1111_0000) + self.joypad.read_state(false),
+            0b11 => self.io[0x00] | 0b0000_1111,
+            _ => unreachable!(),
+        };
         if pressed {
             self.io[0x0F] |= 0b0001_0000;
         }
     }
     pub fn joypad_left(&mut self, pressed: bool) {
         self.joypad.left = pressed;
+        self.io[0x00] = match (self.io[0x00] & 0b0011_0000) >> 4 {
+            0b00 => {
+                ((self.io[0x0] & 0b1111_0000) + self.joypad.read_state(true))
+                    | self.joypad.read_state(false)
+            }
+            0b01 => (self.io[0x0] & 0b1111_0000) + self.joypad.read_state(true),
+            0b10 => (self.io[0x0] & 0b1111_0000) + self.joypad.read_state(false),
+            0b11 => self.io[0x00] | 0b0000_1111,
+            _ => unreachable!(),
+        };
         if pressed {
             self.io[0x0F] |= 0b0001_0000;
         }
     }
     pub fn joypad_right(&mut self, pressed: bool) {
         self.joypad.right = pressed;
+        self.io[0x00] = match (self.io[0x00] & 0b0011_0000) >> 4 {
+            0b00 => {
+                ((self.io[0x0] & 0b1111_0000) + self.joypad.read_state(true))
+                    | self.joypad.read_state(false)
+            }
+            0b01 => (self.io[0x0] & 0b1111_0000) + self.joypad.read_state(true),
+            0b10 => (self.io[0x0] & 0b1111_0000) + self.joypad.read_state(false),
+            0b11 => self.io[0x00] | 0b0000_1111,
+            _ => unreachable!(),
+        };
         if pressed {
             self.io[0x0F] |= 0b0001_0000;
         }
