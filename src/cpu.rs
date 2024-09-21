@@ -1,5 +1,5 @@
 use crate::mmu::Mmu;
-use crate::ppu::{self, Ppu};
+use crate::ppu::draw_scanline;
 use crate::registers::{Flags, R16OrSP, R8OrMem, Registers, R16, R8};
 use std::cell::Cell;
 use std::time::Instant;
@@ -26,7 +26,6 @@ pub struct Cpu {
     pub sp: u16,
     pub last_frame: Instant,
     pub mmu: Mmu,
-    pub ppu: Ppu,
     pub ime: bool,
     pub state: State,
 }
@@ -39,7 +38,6 @@ impl Cpu {
             sp: 0,
             last_frame: Instant::now(),
             mmu: Mmu::new(),
-            ppu: Ppu::new(),
             ime: false,
             state: State::Running,
         }
@@ -958,7 +956,7 @@ impl Cpu {
             if line < 144 {
                 let scx = self.mmu.read_byte(0xFF43);
                 let scy = self.mmu.read_byte(0xFF42);
-                ppu::draw_scanline(&self.mmu, frame, scx, scy, line);
+                draw_scanline(&self.mmu, frame, scx, scy, line);
                 let window_line = self.mmu.get_window_counter();
                 let (wy, wx) = self.mmu.get_window_pos();
                 if self.mmu.get_window_enable() && wy <= line && wy < 144 && wx < 167 {

@@ -1,23 +1,6 @@
 use crate::mmu::Mmu;
 
 #[derive(Debug)]
-pub struct Ppu {
-    pub frame_buffer: [u8; 160 * 144 * 4],
-}
-
-impl Ppu {
-    pub fn new() -> Self {
-        Self {
-            frame_buffer: [0; 160 * 144 * 4],
-        }
-    }
-
-    // pub fn render_frame(&mut self, frame: &mut [u8]) {
-    //     frame.copy_from_slice(&self.frame_buffer);
-    // }
-}
-
-#[derive(Debug)]
 pub enum Palette {
     White,
     LightGray,
