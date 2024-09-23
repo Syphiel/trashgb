@@ -28,7 +28,6 @@ pub struct Mmu {
     io: [u8; 0x0080],
     hram: [u8; 0x007F],
     ie: u8,
-    dummy: u8,
     // Cartridge Info
     title: [u8; 0x0F],
     cartridge_type: u8,
@@ -99,7 +98,6 @@ impl Mmu {
             io: [0; 0x0080],
             hram: [0; 0x007F],
             ie: 0,
-            dummy: 0,
 
             title: [0; 0x0F],
             cartridge_type: 0,
@@ -167,6 +165,7 @@ impl Mmu {
         }
     }
 
+    #[inline]
     pub fn read_byte(&self, address: u16) -> u8 {
         match address {
             0x0000..=0x00FF => {
@@ -276,29 +275,6 @@ impl Mmu {
         let high = (value >> 8) as u8;
         self.write_byte(address, low);
         self.write_byte(address + 1, high);
-    }
-
-    pub fn get_mut_byte(&mut self, address: u16) -> &mut u8 {
-        match address {
-            0x0000..=0x3FFF => &mut self.bank0[address as usize],
-            0x4000..=0x7FFF => {
-                if self.rom_bank < 2 {
-                    &mut self.bank1[address as usize - 0x4000]
-                } else {
-                    &mut self.extra_banks[self.rom_bank as usize - 2][address as usize - 0x4000]
-                }
-            }
-            0x8000..=0x9FFF => &mut self.vram[address as usize - 0x8000],
-            0xA000..=0xBFFF => &mut self.eram[address as usize - 0xA000],
-            0xC000..=0xCFFF => &mut self.wram1[address as usize - 0xC000],
-            0xD000..=0xDFFF => &mut self.wram2[address as usize - 0xD000],
-            0xE000..=0xFDFF => &mut self.dummy,
-            0xFE00..=0xFE9F => &mut self.oam[address as usize - 0xFE00],
-            0xFEA0..=0xFEFF => &mut self.dummy,
-            0xFF00..=0xFF7F => &mut self.io[address as usize - 0xFF00],
-            0xFF80..=0xFFFE => &mut self.hram[address as usize - 0xFF80],
-            0xFFFF => &mut self.ie,
-        }
     }
 
     pub fn get_bg_enable(&self) -> bool {

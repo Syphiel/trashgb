@@ -137,7 +137,6 @@ impl Flags {
 
 pub enum R8OrMem<'a> {
     R8(&'a Cell<u8>),
-    Mem(&'a mut u8),
     Ptr(u16),
 }
 
