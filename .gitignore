@@ -1,2 +1,5 @@
 /target
 /roms
+/.cargo
+/www/*.wasm
+/www/*.js

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
+  </head>
+  <body>
+    <script type="module">
+      import wasm_bindgen, { start } from "./trashgb.js";
+
+      async function run() {
+        await wasm_bindgen("./trashgb_bg.wasm").catch(error => {});
+      }
+
+      const fileReader = new FileReader();
+      fileReader.onloadend = function() {
+        var array = new Int8Array(fileReader.result);
+        start(array).catch(error => {});
+      }
+      document.addEventListener("DOMContentLoaded", () => {
+        const fileInput = document.getElementById('file-input');
+        fileInput.addEventListener("change", e => {
+          fileInput.remove();
+          fileReader.readAsArrayBuffer(fileInput.files[0])
+        });
+      });
+
+      run();
+    </script>
+    <input id="file-input" multiple="false" type="file" accept=".gb" />
+  </body>
+</html>

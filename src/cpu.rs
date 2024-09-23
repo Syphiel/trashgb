@@ -2,7 +2,6 @@ use crate::mmu::Mmu;
 use crate::ppu::draw_scanline;
 use crate::registers::{Flags, R16OrSP, R8OrMem, Registers, R16, R8};
 use std::cell::Cell;
-use std::time::Instant;
 
 use crate::registers::{R16mem, R16stk};
 
@@ -24,7 +23,6 @@ pub struct Cpu {
     pub registers: Registers,
     pub pc: u16,
     pub sp: u16,
-    pub last_frame: Instant,
     pub mmu: Mmu,
     pub ime: bool,
     pub state: State,
@@ -36,7 +34,6 @@ impl Cpu {
             registers: Registers::new(),
             pc: 0,
             sp: 0,
-            last_frame: Instant::now(),
             mmu: Mmu::new(),
             ime: false,
             state: State::Running,
@@ -872,8 +869,6 @@ impl Cpu {
     }
 
     pub fn game_loop(&mut self, frame: &mut [u8]) -> bool {
-        self.last_frame = Instant::now();
-
         frame.fill(0);
         let mut ticks = 0;
         self.mmu.set_window_counter(0);

@@ -1,22 +1,56 @@
+#![deny(clippy::all)]
+
 mod cpu;
 mod mmu;
 mod ppu;
 mod registers;
 
 use cpu::Cpu;
+
 use pixels::{Pixels, SurfaceTexture};
-use std::env;
-use std::fs::File;
-use std::time::{Duration, Instant};
 use winit::dpi::LogicalSize;
 use winit::event::{Event, StartCause, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+#[cfg(target_arch = "wasm32")]
+use instant::{Duration, Instant};
+#[cfg(target_arch = "wasm32")]
+use winit::platform::web::WindowExtWebSys;
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::{Duration, Instant};
+
+#[cfg(target_arch = "wasm32")]
 fn main() {
+    std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() != 2 {
+        eprintln!("Usage: {} <rom>", args[0]);
+        std::process::exit(1);
+    }
+    let rom = std::fs::read(&args[1]).unwrap();
+    pollster::block_on(run(&rom));
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn start(rom: &[u8]) {
+    let rom: &'static [u8] = Box::leak(rom.to_vec().into_boxed_slice());
+    wasm_bindgen_futures::spawn_local(run(rom));
+}
+
+async fn run(rom: &[u8]) {
+    let rom = std::io::Cursor::new(rom);
     let event_loop = EventLoop::new();
     let window = {
-        let size = LogicalSize::new(160.0, 144.0);
+        let size = LogicalSize::new(720.0, 576.0);
         WindowBuilder::new()
             .with_title("trashgb")
             .with_inner_size(size)
@@ -24,16 +58,25 @@ fn main() {
             .build(&event_loop)
             .unwrap()
     };
-
+    #[cfg(target_arch = "wasm32")]
+    {
+    let canvas = window.canvas();
+        web_sys::window()
+                .and_then(|win| win.document())
+                .and_then(|doc| doc.body())
+                .and_then(|body| {
+                    body.append_child(&web_sys::Element::from(canvas))
+                        .ok()
+                })
+                .expect("couldn't append canvas to document body");
+    }
     let mut cpu = Cpu::new();
-    let filename = env::args().nth(1).unwrap();
-    let game = File::open(filename).unwrap();
-    cpu.mmu.load_game(game);
+    cpu.mmu.load_game(rom);
 
     let mut pixels = {
         let window_size = window.inner_size();
         let surface_texture = SurfaceTexture::new(window_size.width, window_size.height, &window);
-        Pixels::new(160, 144, surface_texture).unwrap()
+        Pixels::new_async(160, 144, surface_texture).await.unwrap()
     };
 
     event_loop.run(move |event, _, control_flow| match event {

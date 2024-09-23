@@ -1,5 +1,4 @@
 use crate::ppu::Palette;
-use std::fs::File;
 use std::io::BufReader;
 use std::io::Read;
 
@@ -128,7 +127,7 @@ impl Mmu {
         }
     }
 
-    pub fn load_game(&mut self, game: File) {
+    pub fn load_game(&mut self, game: impl Read) {
         for (index, byte) in BufReader::new(game).bytes().enumerate() {
             if index < 0x4000 {
                 self.bank0[index] = byte.unwrap();
