@@ -18,10 +18,9 @@ pub struct Joypad {
 pub struct Mmu {
     // Memory Map
     bootstrap: [u8; 0x100],
-    bank0: [u8; 0x4000],
-    bank1: [u8; 0x4000],
+    rom: Vec<[u8; 0x4000]>,
     vram: [u8; 0x2000],
-    eram: [u8; 0x2000],
+    eram: Vec<[u8; 0x2000]>,
     wram1: [u8; 0x2000],
     wram2: [u8; 0x2000],
     oam: [u8; 0x00A0],
@@ -33,11 +32,9 @@ pub struct Mmu {
     cartridge_type: u8,
     rom_size: u8,
     ram_size: u8,
-    // Additional ROMs
-    extra_banks: Vec<[u8; 0x4000]>,
+    ram_enable: bool,
     // Current banks
     rom_bank: u8,
-    ram_bank: u8,
     rom_mode: u8,
     // Misc
     window_counter: u8,
@@ -88,10 +85,9 @@ impl Mmu {
     pub fn new() -> Self {
         Self {
             bootstrap: *include_bytes!("../roms/bootstrap.gb"),
-            bank0: [0; 0x4000],
-            bank1: [0; 0x4000],
+            rom: Vec::new(),
             vram: [0; 0x2000],
-            eram: [0; 0x2000],
+            eram: Vec::new(),
             wram1: [0; 0x2000],
             wram2: [0; 0x2000],
             oam: [0; 0x00A0],
@@ -103,11 +99,9 @@ impl Mmu {
             cartridge_type: 0,
             rom_size: 0,
             ram_size: 0,
-
-            extra_banks: Vec::new(),
+            ram_enable: false,
 
             rom_bank: 1,
-            ram_bank: 0,
             rom_mode: 0,
 
             window_counter: 0,
@@ -127,42 +121,37 @@ impl Mmu {
 
     pub fn load_game(&mut self, game: impl Read) {
         for (index, byte) in BufReader::new(game).bytes().enumerate() {
-            if index < 0x4000 {
-                self.bank0[index] = byte.unwrap();
-            } else if index < 0x8000 {
-                self.bank1[index - 0x4000] = byte.unwrap();
-            } else {
-                if self.extra_banks.len() <= (index - 0x8000) / 0x4000 {
-                    self.extra_banks.push([0; 0x4000]);
-                    // println!(
-                    //     "Loaded bank {} @ Index {:#06X}",
-                    //     self.extra_banks.len(),
-                    //     index
-                    // );
-                }
-                self.extra_banks.last_mut().unwrap()[index % 0x4000] = byte.unwrap();
+            if self.rom.len() <= index / 0x4000 {
+                self.rom.push([0; 0x4000]);
             }
+            self.rom.last_mut().unwrap()[index % 0x4000] = byte.unwrap();
         }
-        self.title = self.bank0[0x134..0x143].try_into().unwrap();
-        self.cartridge_type = self.bank0[0x147];
-        self.rom_size = self.bank0[0x148];
-        self.ram_size = self.bank0[0x149];
+        self.title = self.rom[0][0x134..0x143].try_into().unwrap();
+        self.cartridge_type = self.rom[0][0x147];
+        self.rom_size = self.rom[0][0x148];
+        self.ram_size = match self.rom[0][0x149] {
+            0x02 => 1,
+            0x03 => 4,
+            0x04 => 16,
+            0x05 => 8,
+            _ => 0,
+        };
 
         // println!("Title: {:?}", std::str::from_utf8(&self.title).unwrap());
         // println!("Cartridge Type: {:X}", self.cartridge_type);
         // println!("ROM Size: {:X}", self.rom_size);
         // println!("RAM Size: {:X}", self.ram_size);
 
-        self.rom_size = 2 << self.bank0[0x148];
+        self.rom_size = 2 << self.rom[0][0x148];
 
-        if self.rom_size != self.extra_banks.len() as u8 + 2 {
+        if self.rom_size != self.rom.len() as u8 {
             eprintln!(
                 "ROM Size ({}) does not match actual size ({})",
                 self.rom_size,
-                self.extra_banks.len()
+                self.rom.len()
             );
-            self.rom_size = self.extra_banks.len() as u8 + 4;
         }
+        self.eram = vec![[0; 0x2000]; self.ram_size as usize];
     }
 
     #[inline]
@@ -171,20 +160,48 @@ impl Mmu {
             0x0000..=0x00FF => {
                 if self.io[0x50] == 0x00 {
                     self.bootstrap[address as usize]
+                } else if self.rom_mode == 0 {
+                    self.rom[0][address as usize]
                 } else {
-                    self.bank0[address as usize]
+                    let bank = self.rom_bank as usize & 0b0110_0000;
+                    let bank = bank % self.rom_size as usize;
+                    self.rom[bank][address as usize]
                 }
             }
-            0x0100..=0x3FFF => self.bank0[address as usize],
-            0x4000..=0x7FFF => {
-                if self.rom_bank < 2 {
-                    self.bank1[address as usize - 0x4000]
+            0x0100..=0x3FFF => {
+                if self.rom_mode == 0 {
+                    self.rom[0][address as usize]
                 } else {
-                    self.extra_banks[self.rom_bank as usize - 2][address as usize - 0x4000]
+                    let bank = self.rom_bank as usize & 0b0110_0000;
+                    let bank = bank % self.rom_size as usize;
+                    self.rom[bank][address as usize]
                 }
+            }
+            0x4000..=0x7FFF => {
+                if self.rom_size < 2 {
+                    return 0xFF;
+                }
+                let bank = match self.rom_bank {
+                    0..=1 => 1,
+                    n @ 2..96 if n < self.rom_size => n as usize,
+                    n if n & 0b0001_1111 == 0 => 1,
+                    n => (n % self.rom_size) as usize,
+                };
+                self.rom[bank][address as usize - 0x4000]
             }
             0x8000..=0x9FFF => self.vram[address as usize - 0x8000],
-            0xA000..=0xBFFF => self.eram[address as usize - 0xA000],
+            0xA000..=0xBFFF => {
+                if self.ram_enable && self.ram_size > 0 {
+                    if self.rom_mode == 1 && self.ram_size > 1 {
+                        let bank = (self.rom_bank as usize & 0b0110_0000) >> 5;
+                        self.eram[bank][address as usize - 0xA000]
+                    } else {
+                        self.eram[0][address as usize - 0xA000]
+                    }
+                } else {
+                    0xFF
+                }
+            }
             0xC000..=0xCFFF => self.wram1[address as usize - 0xC000],
             0xD000..=0xDFFF => self.wram2[address as usize - 0xD000],
             0xE000..=0xFDFF => 0xFF,
@@ -229,36 +246,35 @@ impl Mmu {
             return;
         }
         match address {
-            0x0000..=0x1FFF => { /* RAM Enable */ }
+            0x0000..=0x1FFF => {
+                /* RAM Enable */
+                self.ram_enable = value & 0x0F == 0x0A && self.ram_size > 0;
+            }
             0x2000..=0x3FFF => {
                 /* ROM Bank */
-                if self.rom_size < 2 || self.rom_size < value & 0b0001_1111 {
-                    return;
-                }
-                if value & 0b0001_1111 == 0 {
-                    self.rom_bank = 1;
-                } else {
-                    self.rom_bank = value & 0b0001_1111;
-                }
+                self.rom_bank &= 0b1110_0000;
+                self.rom_bank |= value & 0b0001_1111;
             }
             0x4000..=0x5FFF => {
                 /* RAM Bank or Upper Bits of ROM Bank */
-                if self.rom_mode == 1 {
-                    self.ram_bank = value & 0b0000_0011;
-                } else {
-                    self.rom_bank |= (value & 0b0000_0011) << 5;
-                }
+                self.rom_bank &= 0b0001_1111;
+                self.rom_bank |= (value & 0b0000_0011) << 5;
             }
             0x6000..=0x7FFF => {
                 /* ROM/RAM Mode Select */
-                if value & 0x0000_0001 == 0 {
-                    self.rom_mode = 0;
-                } else {
-                    self.rom_mode = 1;
-                }
+                self.rom_mode = value & 0x0000_0001;
             }
             0x8000..=0x9FFF => self.vram[address as usize - 0x8000] = value,
-            0xA000..=0xBFFF => self.eram[address as usize - 0xA000] = value,
+            0xA000..=0xBFFF => {
+                if self.ram_enable {
+                    let bank = (self.rom_bank as usize & 0b0110_0000) >> 5;
+                    if self.rom_mode == 1 && self.ram_size > 1 {
+                        self.eram[bank][address as usize - 0xA000] = value;
+                    } else {
+                        self.eram[0][address as usize - 0xA000] = value;
+                    }
+                }
+            }
             0xC000..=0xCFFF => self.wram1[address as usize - 0xC000] = value,
             0xD000..=0xDFFF => self.wram2[address as usize - 0xD000] = value,
             0xE000..=0xFDFF => {}
@@ -360,26 +376,26 @@ impl Mmu {
     pub fn increment_timer(&mut self, cycles: u32) -> bool {
         let cycles = cycles * 4;
         let timer = self.timer.wrapping_add(cycles as u16);
-        let shift = match self.io[0x07] & 0b0000_0011 {
-            0b00 => 9,
-            0b01 => 3,
-            0b10 => 5,
-            0b11 => 7,
-            _ => unreachable!(),
-        };
-        if timer & (!0_u16 << shift) != self.timer & (!0_u16 << shift)
-            && self.io[0x07] & 0b100 == 0b100
-        {
-            self.io[0x05] = self.io[0x05].wrapping_add(1);
-            if self.io[0x05] == 0 {
-                self.io[0x05] = self.io[0x06] + 1;
-                self.timer = timer;
-                self.io[0x04] = (self.timer >> 8) as u8;
-                return true;
+        self.io[0x04] = (self.timer >> 8) as u8;
+        if self.io[0x07] & 0b100 != 0 {
+            let shift = match self.io[0x07] & 0b0000_0011 {
+                0b00 => 10,
+                0b01 => 4,
+                0b10 => 6,
+                0b11 => 8,
+                _ => unreachable!(),
+            };
+
+            if timer >> shift != self.timer >> shift {
+                self.io[0x05] = self.io[0x05].wrapping_add(1);
+                if self.io[0x05] == 0 {
+                    self.io[0x05] = self.io[0x06];
+                    self.timer = timer;
+                    return true;
+                }
             }
         }
         self.timer = timer;
-        self.io[0x04] = (self.timer >> 8) as u8;
         false
     }
     pub fn joypad_a(&mut self, pressed: bool) {

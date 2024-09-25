@@ -16,6 +16,7 @@ enum AfterInstruction {
 pub enum State {
     Running,
     Halted,
+    Ime,
 }
 
 #[derive(Debug)]
@@ -59,7 +60,7 @@ impl Cpu {
                                     let value = self.mmu.read_byte(ptr);
                                     let value = rlc_r8(value, &self.registers.flags);
                                     self.mmu.write_byte(ptr, value);
-                                },
+                                }
                             };
                             self.pc += 2;
                             return 2;
@@ -72,7 +73,7 @@ impl Cpu {
                                     let value = self.mmu.read_byte(ptr);
                                     let value = rrc_r8(value, &self.registers.flags);
                                     self.mmu.write_byte(ptr, value);
-                                },
+                                }
                             };
                             self.pc += 2;
                             return 2;
@@ -85,7 +86,7 @@ impl Cpu {
                                     let value = self.mmu.read_byte(ptr);
                                     let value = rl_r8(value, &self.registers.flags);
                                     self.mmu.write_byte(ptr, value);
-                                },
+                                }
                             };
                             self.pc += 2;
                             return 2;
@@ -98,7 +99,7 @@ impl Cpu {
                                     let value = self.mmu.read_byte(ptr);
                                     let value = rr_r8(value, &self.registers.flags);
                                     self.mmu.write_byte(ptr, value);
-                                },
+                                }
                             };
                             self.pc += 2;
                             return 2;
@@ -111,7 +112,7 @@ impl Cpu {
                                     let value = self.mmu.read_byte(ptr);
                                     let value = sla_r8(value, &self.registers.flags);
                                     self.mmu.write_byte(ptr, value);
-                                },
+                                }
                             };
                             self.pc += 2;
                             return 2;
@@ -124,7 +125,7 @@ impl Cpu {
                                     let value = self.mmu.read_byte(ptr);
                                     let value = sra_r8(value, &self.registers.flags);
                                     self.mmu.write_byte(ptr, value);
-                                },
+                                }
                             };
                             self.pc += 2;
                             return 2;
@@ -137,7 +138,7 @@ impl Cpu {
                                     let value = self.mmu.read_byte(ptr);
                                     let value = swap_r8(value, &self.registers.flags);
                                     self.mmu.write_byte(ptr, value);
-                                },
+                                }
                             };
                             self.pc += 2;
                             return 2;
@@ -150,7 +151,7 @@ impl Cpu {
                                     let value = self.mmu.read_byte(ptr);
                                     let value = srl_r8(value, &self.registers.flags);
                                     self.mmu.write_byte(ptr, value);
-                                },
+                                }
                             };
                             self.pc += 2;
                             return 2;
@@ -182,7 +183,7 @@ impl Cpu {
                             let value = self.mmu.read_byte(ptr);
                             let value = res_b3_r8(bit_index, value);
                             self.mmu.write_byte(ptr, value);
-                        },
+                        }
                     };
                     self.pc += 2;
                     return 2;
@@ -359,7 +360,7 @@ impl Cpu {
                                     let value = self.mmu.read_byte(ptr);
                                     let value = inc_r8(value, &self.registers.flags);
                                     self.mmu.write_byte(ptr, value);
-                                },
+                                }
                             };
                             self.pc += 1;
                             return 1;
@@ -374,7 +375,7 @@ impl Cpu {
                                     let value = self.mmu.read_byte(ptr);
                                     let value = dec_r8(value, &self.registers.flags);
                                     self.mmu.write_byte(ptr, value);
-                                },
+                                }
                             };
                             self.pc += 1;
                             return 1;
@@ -394,28 +395,36 @@ impl Cpu {
                         0b0111 | 0b1111 => match (opcode & 0b0011_1000) >> 3 {
                             0b000 => {
                                 // ## println!("{:#04x}: rlca", self.pc);
-                                self.registers.a.set(rlc_r8(self.registers.a.get(), &self.registers.flags));
+                                self.registers
+                                    .a
+                                    .set(rlc_r8(self.registers.a.get(), &self.registers.flags));
                                 self.registers.flags.zero.set(false);
                                 self.pc += 1;
                                 return 1;
                             }
                             0b001 => {
                                 // ## println!("{:#04x}: rrca", self.pc);
-                                self.registers.a.set(rrc_r8(self.registers.a.get(), &self.registers.flags));
+                                self.registers
+                                    .a
+                                    .set(rrc_r8(self.registers.a.get(), &self.registers.flags));
                                 self.registers.flags.zero.set(false);
                                 self.pc += 1;
                                 return 1;
                             }
                             0b010 => {
                                 // ## println!("{:#04x}: rla", self.pc);
-                                self.registers.a.set(rl_r8(self.registers.a.get(), &self.registers.flags));
+                                self.registers
+                                    .a
+                                    .set(rl_r8(self.registers.a.get(), &self.registers.flags));
                                 self.registers.flags.zero.set(false);
                                 self.pc += 1;
                                 return 1;
                             }
                             0b011 => {
                                 // ## println!("{:#04x}: rra", self.pc);
-                                self.registers.a.set(rr_r8(self.registers.a.get(), &self.registers.flags));
+                                self.registers
+                                    .a
+                                    .set(rr_r8(self.registers.a.get(), &self.registers.flags));
                                 self.pc += 1;
                                 self.registers.flags.zero.set(false);
                                 return 1;
@@ -784,7 +793,8 @@ impl Cpu {
                         // ## println!("{:#04x}: reti", self.pc);
                         self.pc = self.mmu.read_word(self.sp);
                         self.sp += 2;
-                        self.ime = true;
+                        self.state = State::Ime;
+                        // self.ime = true;
                         return 4;
                     }
                     0b1100_0011 => {
@@ -848,6 +858,7 @@ impl Cpu {
                     0b1111_0011 => {
                         // ## println!("{:#04x}: di", self.pc);
                         self.ime = false;
+                        self.state = State::Running;
                         self.pc += 1;
                         return 1;
                     }
@@ -918,6 +929,10 @@ impl Cpu {
         self.mmu.set_window_counter(0);
         for line in 0..154 {
             while ticks < 456 {
+                if self.state == State::Ime {
+                    self.state = State::Running;
+                    self.ime = true;
+                }
                 if self.state != State::Halted {
                     let duration = self.step() as u32;
                     ticks += duration;

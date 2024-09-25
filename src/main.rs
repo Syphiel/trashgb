@@ -128,6 +128,7 @@ async fn run(rom: &[u8]) {
                         VirtualKeyCode::Right => cpu.mmu.joypad_right(false),
                         VirtualKeyCode::Z => cpu.mmu.joypad_a(false),
                         VirtualKeyCode::X => cpu.mmu.joypad_b(false),
+                        VirtualKeyCode::D => println!("{:08b}", cpu.mmu.read_byte(0xFF41)),
                         VirtualKeyCode::Return => cpu.mmu.joypad_start(false),
                         VirtualKeyCode::Back => cpu.mmu.joypad_select(false),
                         _ => {}
