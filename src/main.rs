@@ -1,6 +1,7 @@
 #![deny(clippy::all)]
 
 mod cpu;
+mod mapper;
 mod mmu;
 mod ppu;
 mod registers;

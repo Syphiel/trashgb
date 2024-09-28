@@ -5,21 +5,19 @@ use std::cell::Cell;
 
 use crate::registers::{R16mem, R16stk};
 
-#[derive(Debug)]
 enum AfterInstruction {
     Increment,
     Decrement,
     None,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub enum State {
     Running,
     Halted,
     Ime,
 }
 
-#[derive(Debug)]
 pub struct Cpu {
     pub registers: Registers,
     pub pc: u16,

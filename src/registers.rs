@@ -1,6 +1,5 @@
 use std::cell::Cell;
 
-#[derive(Debug)]
 pub enum R8 {
     B,
     C,
@@ -28,7 +27,6 @@ impl R8 {
     }
 }
 
-#[derive(Debug)]
 pub enum R16 {
     BC,
     DE,
@@ -48,7 +46,6 @@ impl R16 {
     }
 }
 
-#[derive(Debug)]
 pub enum R16stk {
     BC,
     DE,
@@ -68,7 +65,6 @@ impl R16stk {
     }
 }
 
-#[derive(Debug)]
 pub enum R16mem {
     BC,
     DE,
@@ -101,7 +97,6 @@ impl R16mem {
 //     Imm16,
 // }
 
-#[derive(Debug)]
 pub struct Flags {
     pub zero: Cell<bool>,
     pub subtract: Cell<bool>,
@@ -145,7 +140,6 @@ pub enum R16OrSP<'a> {
     SP,
 }
 
-#[derive(Debug)]
 pub struct Registers {
     pub a: Cell<u8>,
     pub b: Cell<u8>,

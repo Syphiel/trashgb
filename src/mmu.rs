@@ -1,8 +1,8 @@
+use crate::mapper::{Mapper, Mbc1};
 use crate::ppu::Palette;
 use std::io::BufReader;
 use std::io::Read;
 
-#[derive(Debug)]
 pub struct Joypad {
     a: bool,
     b: bool,
@@ -14,32 +14,27 @@ pub struct Joypad {
     right: bool,
 }
 
-#[derive(Debug)]
 pub struct Mmu {
     // Memory Map
     bootstrap: [u8; 0x100],
-    rom: Vec<[u8; 0x4000]>,
+    pub bank0: usize,
+    pub bank1: usize,
     vram: [u8; 0x2000],
-    eram: Vec<[u8; 0x2000]>,
+    pub eram: Option<usize>,
     wram1: [u8; 0x2000],
     wram2: [u8; 0x2000],
     oam: [u8; 0x00A0],
     io: [u8; 0x0080],
     hram: [u8; 0x007F],
     ie: u8,
-    // Cartridge Info
-    title: [u8; 0x0F],
-    cartridge_type: u8,
-    rom_size: u8,
-    ram_size: u8,
-    ram_enable: bool,
-    // Current banks
-    rom_bank: u8,
-    rom_mode: u8,
+    // Cartridge
+    pub rom: Vec<[u8; 0x4000]>,
+    pub ram: Vec<[u8; 0x2000]>,
     // Misc
     window_counter: u8,
     timer: u16,
     joypad: Joypad,
+    mapper: Option<Box<dyn Mapper>>,
 }
 
 impl Joypad {
@@ -87,22 +82,13 @@ impl Mmu {
             bootstrap: *include_bytes!("../roms/bootstrap.gb"),
             rom: Vec::new(),
             vram: [0; 0x2000],
-            eram: Vec::new(),
+            ram: Vec::new(),
             wram1: [0; 0x2000],
             wram2: [0; 0x2000],
             oam: [0; 0x00A0],
             io: [0; 0x0080],
             hram: [0; 0x007F],
             ie: 0,
-
-            title: [0; 0x0F],
-            cartridge_type: 0,
-            rom_size: 0,
-            ram_size: 0,
-            ram_enable: false,
-
-            rom_bank: 1,
-            rom_mode: 0,
 
             window_counter: 0,
             timer: 0,
@@ -116,6 +102,10 @@ impl Mmu {
                 left: false,
                 right: false,
             },
+            bank0: 0,
+            bank1: 1,
+            eram: None,
+            mapper: None,
         }
     }
 
@@ -126,89 +116,60 @@ impl Mmu {
             }
             self.rom.last_mut().unwrap()[index % 0x4000] = byte.unwrap();
         }
-        self.title = self.rom[0][0x134..0x143].try_into().unwrap();
-        self.cartridge_type = self.rom[0][0x147];
-        self.rom_size = self.rom[0][0x148];
-        self.ram_size = match self.rom[0][0x149] {
+        let rom_size = 2 << self.rom[0][0x148];
+        let ram_size = match self.rom[0][0x149] {
             0x02 => 1,
             0x03 => 4,
             0x04 => 16,
             0x05 => 8,
             _ => 0,
         };
+        self.mapper = match self.rom[0][0x147] {
+            0x00 => None,
+            0x01..=0x03 => Some(Box::new(Mbc1::new(rom_size, ram_size, self))),
+            _ => panic!("Unsupported mapper"),
+        };
 
-        // println!("Title: {:?}", std::str::from_utf8(&self.title).unwrap());
-        // println!("Cartridge Type: {:X}", self.cartridge_type);
-        // println!("ROM Size: {:X}", self.rom_size);
-        // println!("RAM Size: {:X}", self.ram_size);
-
-        self.rom_size = 2 << self.rom[0][0x148];
-
-        if self.rom_size != self.rom.len() as u8 {
+        if rom_size != self.rom.len() as u8 {
             eprintln!(
                 "ROM Size ({}) does not match actual size ({})",
-                self.rom_size,
+                rom_size,
                 self.rom.len()
             );
         }
-        self.eram = vec![[0; 0x2000]; self.ram_size as usize];
+        self.ram = vec![[0; 0x2000]; ram_size as usize];
     }
 
     #[inline]
     pub fn read_byte(&self, address: u16) -> u8 {
-        match address {
+        let address = address as usize;
+        match address as u16 {
             0x0000..=0x00FF => {
                 if self.io[0x50] == 0x00 {
-                    self.bootstrap[address as usize]
-                } else if self.rom_mode == 0 {
-                    self.rom[0][address as usize]
-                } else {
-                    let bank = self.rom_bank as usize & 0b0110_0000;
-                    let bank = bank % self.rom_size as usize;
-                    self.rom[bank][address as usize]
+                    return self.bootstrap[address]
                 }
+                self.rom[self.bank0][address]
             }
             0x0100..=0x3FFF => {
-                if self.rom_mode == 0 {
-                    self.rom[0][address as usize]
-                } else {
-                    let bank = self.rom_bank as usize & 0b0110_0000;
-                    let bank = bank % self.rom_size as usize;
-                    self.rom[bank][address as usize]
-                }
+                self.rom[self.bank0][address]
             }
             0x4000..=0x7FFF => {
-                if self.rom_size < 2 {
-                    return 0xFF;
-                }
-                let bank = match self.rom_bank {
-                    0..=1 => 1,
-                    n @ 2..96 if n < self.rom_size => n as usize,
-                    n if n & 0b0001_1111 == 0 => 1,
-                    n => (n % self.rom_size) as usize,
-                };
-                self.rom[bank][address as usize - 0x4000]
+                self.rom[self.bank1][address - 0x4000]
             }
-            0x8000..=0x9FFF => self.vram[address as usize - 0x8000],
+            0x8000..=0x9FFF => self.vram[address - 0x8000],
             0xA000..=0xBFFF => {
-                if self.ram_enable && self.ram_size > 0 {
-                    if self.rom_mode == 1 && self.ram_size > 1 {
-                        let bank = (self.rom_bank as usize & 0b0110_0000) >> 5;
-                        self.eram[bank][address as usize - 0xA000]
-                    } else {
-                        self.eram[0][address as usize - 0xA000]
-                    }
-                } else {
-                    0xFF
+                match self.eram {
+                    Some(bank) => self.ram[bank][address - 0xA000],
+                    None => 0xFF,
                 }
             }
-            0xC000..=0xCFFF => self.wram1[address as usize - 0xC000],
-            0xD000..=0xDFFF => self.wram2[address as usize - 0xD000],
+            0xC000..=0xCFFF => self.wram1[address - 0xC000],
+            0xD000..=0xDFFF => self.wram2[address - 0xD000],
             0xE000..=0xFDFF => 0xFF,
-            0xFE00..=0xFE9F => self.oam[address as usize - 0xFE00],
+            0xFE00..=0xFE9F => self.oam[address - 0xFE00],
             0xFEA0..=0xFEFF => 0xFF,
-            0xFF00..=0xFF7F => self.io[address as usize - 0xFF00],
-            0xFF80..=0xFFFE => self.hram[address as usize - 0xFF80],
+            0xFF00..=0xFF7F => self.io[address - 0xFF00],
+            0xFF80..=0xFFFE => self.hram[address - 0xFF80],
             0xFFFF => self.ie,
         }
     }
@@ -246,33 +207,16 @@ impl Mmu {
             return;
         }
         match address {
-            0x0000..=0x1FFF => {
-                /* RAM Enable */
-                self.ram_enable = value & 0x0F == 0x0A && self.ram_size > 0;
-            }
-            0x2000..=0x3FFF => {
-                /* ROM Bank */
-                self.rom_bank &= 0b1110_0000;
-                self.rom_bank |= value & 0b0001_1111;
-            }
-            0x4000..=0x5FFF => {
-                /* RAM Bank or Upper Bits of ROM Bank */
-                self.rom_bank &= 0b0001_1111;
-                self.rom_bank |= (value & 0b0000_0011) << 5;
-            }
-            0x6000..=0x7FFF => {
-                /* ROM/RAM Mode Select */
-                self.rom_mode = value & 0x0000_0001;
-            }
+            0x0000..=0x7FFF => {
+                if let Some(mut mapper) = self.mapper.take() {
+                    mapper.write_register(address, value, self);
+                    self.mapper = Some(mapper);
+                }
+            },
             0x8000..=0x9FFF => self.vram[address as usize - 0x8000] = value,
             0xA000..=0xBFFF => {
-                if self.ram_enable {
-                    let bank = (self.rom_bank as usize & 0b0110_0000) >> 5;
-                    if self.rom_mode == 1 && self.ram_size > 1 {
-                        self.eram[bank][address as usize - 0xA000] = value;
-                    } else {
-                        self.eram[0][address as usize - 0xA000] = value;
-                    }
+                if let Some(bank) = self.eram {
+                    self.ram[bank][address as usize - 0xA000] = value;
                 }
             }
             0xC000..=0xCFFF => self.wram1[address as usize - 0xC000] = value,
