@@ -1,3 +1,5 @@
+use std::num::Wrapping;
+
 use crate::mmu::Mmu;
 
 #[derive(Debug)]
@@ -60,7 +62,7 @@ pub fn draw_sprites(mapper: &Mmu, line: u8, output: &mut [u8]) {
         if sprite.y >= 144 || sprite.y == -16 {
             continue;
         }
-        if line >= sprite.y + offset || line < sprite.y {
+        if line >= sprite.y.wrapping_add(offset) || line < sprite.y {
             continue;
         }
         if sprite.x >= 160 || sprite.x == -8 {
@@ -79,8 +81,8 @@ pub fn draw_sprites(mapper: &Mmu, line: u8, output: &mut [u8]) {
         };
 
         let tile_start = match offset {
-            8 => sprite.tile as usize * 16 + (tile_line as usize * 2),
-            16 => (sprite.tile & 0xFE) as usize * 16 + (tile_line as usize * 2),
+            8 => (sprite.tile as usize * 16).wrapping_add(tile_line as usize * 2),
+            16 => ((sprite.tile & 0xFE) as usize * 16).wrapping_add(tile_line as usize * 2),
             _ => unreachable!(),
         };
 
@@ -99,13 +101,13 @@ pub fn draw_sprites(mapper: &Mmu, line: u8, output: &mut [u8]) {
         };
 
         for x in 0..8 {
-            if sprite.x + x >= 160 {
+            if sprite.x.wrapping_add(x) >= 160 {
                 continue;
             }
-            if sprite.x + x < 0 {
+            if sprite.x.wrapping_add(x) < 0 {
                 continue;
             }
-            let start = (sprite.x as usize + x as usize) * 4;
+            let start = (sprite.x as usize).wrapping_add(x as usize) * 4;
             let end = start + 4;
 
             let color = ((tile[1] >> (7 - x) & 0b1) << 1) | (tile[0] >> (7 - x) & 0b1);
@@ -145,10 +147,10 @@ pub fn draw_window(mapper: &Mmu, line: u8, output: &mut [u8]) {
     let y = mapper.get_window_counter();
 
     for (index, pixel) in output.chunks_exact_mut(4).enumerate() {
-        if index < win_x as usize - 7 {
+        if index < (win_x as usize).saturating_sub(7) {
             continue;
         }
-        let x = index - win_x as usize + 7;
+        let x = index.wrapping_sub(win_x as usize).wrapping_add(7);
         let start = (y as usize / 8) * 32 + (x / 8);
         let start = tilemap[start] as usize;
         let tile = match mapper.get_tile_mode() {
@@ -210,7 +212,7 @@ pub fn draw_scanline(mapper: &Mmu, frame: &mut [u8], scx: u8, scy: u8, line: u8)
             continue;
         }
 
-        if win.iter().sum::<u8>() != 0 {
+        if win.iter().copied().map(Wrapping).sum::<Wrapping<u8>>().0 != 0 {
             match pixel[3] {
                 0 => {
                     pixel.copy_from_slice(win);
@@ -229,9 +231,14 @@ pub fn draw_scanline(mapper: &Mmu, frame: &mut [u8], scx: u8, scy: u8, line: u8)
             };
         }
 
-        let real_idx = real_idx + (start / 4);
-        let idx =
-            (real_idx as u16 % 160 + scx as u16) + ((real_idx as u16 / 160 + scy as u16) * 256);
+        let real_idx = real_idx.wrapping_add(start / 4);
+        let idx = (real_idx as u16 % 160)
+            .wrapping_add(scx as u16)
+            .wrapping_add(
+                (real_idx as u16 / 160)
+                    .wrapping_add(scy as u16)
+                    .wrapping_mul(256),
+            );
         let y = idx / 256;
         let x = idx % 256;
         let tilenum = ((y / 8) * 32 + x / 8) as usize;
