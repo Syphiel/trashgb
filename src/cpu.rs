@@ -1033,7 +1033,11 @@ impl Cpu {
                     .write_byte(0xFF0F, self.mmu.read_byte(0xFF0F) | 0b0000_0001);
             }
 
-            self.mmu.write_byte(0xFF44, line);
+            if line < 153 {
+                self.mmu.write_byte(0xFF44, line);
+            } else {
+                self.mmu.write_byte(0xFF44, 0);
+            }
         }
         true
     }
