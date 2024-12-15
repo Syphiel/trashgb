@@ -206,6 +206,11 @@ impl Mmu {
             }
             return;
         }
+        if address == 0xFF50 {
+            /* Read-Only after initialization */
+            self.io[0x50] = 0xFF;
+            return;
+        }
         match address {
             0x0000..=0x7FFF => {
                 if let Some(mut mapper) = self.mapper.take() {
