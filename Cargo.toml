@@ -18,3 +18,9 @@ web-sys = { version = "0.3.70", features = ["Document", "Element", "GpuTextureFo
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 pollster = "0.3.0"
+
+[profile.web]
+inherits = "release"
+lto = "fat"
+opt-level = "z"
+strip = true
