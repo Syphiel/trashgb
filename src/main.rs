@@ -51,7 +51,7 @@ async fn run(rom: &[u8]) {
     let rom = std::io::Cursor::new(rom);
     let event_loop = EventLoop::new();
     let window = {
-        let size = LogicalSize::new(720.0, 576.0);
+        let size = LogicalSize::new(640.0, 576.0);
         WindowBuilder::new()
             .with_title("trashgb")
             .with_inner_size(size)
@@ -61,7 +61,7 @@ async fn run(rom: &[u8]) {
     };
     #[cfg(target_arch = "wasm32")]
     {
-    let canvas = window.canvas();
+        let canvas = window.canvas();
         web_sys::window()
                 .and_then(|win| win.document())
                 .and_then(|doc| doc.body())
