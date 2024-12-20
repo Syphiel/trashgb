@@ -603,7 +603,7 @@ impl Cpu {
                             // ## println!("{:#04x}: or a, imm8", self.pc);
                             or_a_imm8(a, imm8, &self.registers.flags);
                             self.pc += 2;
-                            return 2;
+                            return 1;
                         }
                         0b111 => {
                             // ## println!("{:#04x}: cp a, imm8", self.pc);
@@ -889,7 +889,7 @@ impl Cpu {
                         }
                         self.sp += 2;
                         self.pc += 1;
-                        return 4;
+                        return 3;
                     }
                     0b0101 => {
                         // ## println!("{:#04x}: push r16stk", self.pc);
@@ -911,7 +911,7 @@ impl Cpu {
                         }
                         self.sp -= 2;
                         self.pc += 1;
-                        return 3;
+                        return 4;
                     }
                     _ => {}
                 }
