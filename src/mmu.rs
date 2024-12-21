@@ -146,7 +146,7 @@ impl Mmu {
         match address as u16 {
             0x0000..=0x00FF => {
                 if self.io[0x50] == 0x00 {
-                    return self.bootstrap[address]
+                    return self.bootstrap[address];
                 }
                 self.rom[self.bank0][address]
             }
@@ -191,6 +191,11 @@ impl Mmu {
         }
         if address == 0xFF04 {
             self.timer = 0;
+        }
+        if address == 0xFF0F {
+            /* Upper bits of IF are always 1 */
+            self.io[0x0F] = value | 0b1110_0000;
+            return;
         }
         if address == 0xFF46 {
             /* DMA Transfer */
