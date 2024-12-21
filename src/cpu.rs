@@ -42,438 +42,263 @@ impl Cpu {
     pub fn step(&mut self) -> u8 {
         let opcode = self.mmu.read_byte(self.pc);
 
-        if opcode == 0xCB {
-            let opcode = self.mmu.read_byte(self.pc + 1);
-            match (opcode & 0b1100_0000) >> 6 {
-                0b00 => {
-                    let operand = R8::from_u8(opcode & 0b0000_0111);
-                    let operand = self.registers.get_r8(operand);
-
-                    match (opcode & 0b0011_1000) >> 3 {
-                        0b000 => {
-                            // ## println!("{:#04x}: rlc r8", self.pc);
-                            match operand {
-                                R8OrMem::R8(r8) => r8.set(rlc_r8(r8.get(), &self.registers.flags)),
-                                R8OrMem::Ptr(ptr) => {
-                                    let value = self.mmu.read_byte(ptr);
-                                    let value = rlc_r8(value, &self.registers.flags);
-                                    self.mmu.write_byte(ptr, value);
-                                }
-                            };
-                            self.pc += 2;
-                            return 2;
-                        }
-                        0b001 => {
-                            // ## println!("{:#04x}: rrc r8", self.pc);
-                            match operand {
-                                R8OrMem::R8(r8) => r8.set(rrc_r8(r8.get(), &self.registers.flags)),
-                                R8OrMem::Ptr(ptr) => {
-                                    let value = self.mmu.read_byte(ptr);
-                                    let value = rrc_r8(value, &self.registers.flags);
-                                    self.mmu.write_byte(ptr, value);
-                                }
-                            };
-                            self.pc += 2;
-                            return 2;
-                        }
-                        0b010 => {
-                            // ## println!("{:#04x}: rl r8", self.pc);
-                            match operand {
-                                R8OrMem::R8(r8) => r8.set(rl_r8(r8.get(), &self.registers.flags)),
-                                R8OrMem::Ptr(ptr) => {
-                                    let value = self.mmu.read_byte(ptr);
-                                    let value = rl_r8(value, &self.registers.flags);
-                                    self.mmu.write_byte(ptr, value);
-                                }
-                            };
-                            self.pc += 2;
-                            return 2;
-                        }
-                        0b011 => {
-                            // ## println!("{:#04x}: rr r8", self.pc);
-                            match operand {
-                                R8OrMem::R8(r8) => r8.set(rr_r8(r8.get(), &self.registers.flags)),
-                                R8OrMem::Ptr(ptr) => {
-                                    let value = self.mmu.read_byte(ptr);
-                                    let value = rr_r8(value, &self.registers.flags);
-                                    self.mmu.write_byte(ptr, value);
-                                }
-                            };
-                            self.pc += 2;
-                            return 2;
-                        }
-                        0b100 => {
-                            // ## println!("{:#04x}: sla r8", self.pc);
-                            match operand {
-                                R8OrMem::R8(r8) => r8.set(sla_r8(r8.get(), &self.registers.flags)),
-                                R8OrMem::Ptr(ptr) => {
-                                    let value = self.mmu.read_byte(ptr);
-                                    let value = sla_r8(value, &self.registers.flags);
-                                    self.mmu.write_byte(ptr, value);
-                                }
-                            };
-                            self.pc += 2;
-                            return 2;
-                        }
-                        0b101 => {
-                            // ## println!("{:#04x}: sra r8", self.pc);
-                            match operand {
-                                R8OrMem::R8(r8) => r8.set(sra_r8(r8.get(), &self.registers.flags)),
-                                R8OrMem::Ptr(ptr) => {
-                                    let value = self.mmu.read_byte(ptr);
-                                    let value = sra_r8(value, &self.registers.flags);
-                                    self.mmu.write_byte(ptr, value);
-                                }
-                            };
-                            self.pc += 2;
-                            return 2;
-                        }
-                        0b110 => {
-                            // ## println!("{:#04x}: swap r8", self.pc);
-                            match operand {
-                                R8OrMem::R8(r8) => r8.set(swap_r8(r8.get(), &self.registers.flags)),
-                                R8OrMem::Ptr(ptr) => {
-                                    let value = self.mmu.read_byte(ptr);
-                                    let value = swap_r8(value, &self.registers.flags);
-                                    self.mmu.write_byte(ptr, value);
-                                }
-                            };
-                            self.pc += 2;
-                            return 2;
-                        }
-                        0b111 => {
-                            // ## println!("{:#04x}: srl r8", self.pc);
-                            match operand {
-                                R8OrMem::R8(r8) => r8.set(srl_r8(r8.get(), &self.registers.flags)),
-                                R8OrMem::Ptr(ptr) => {
-                                    let value = self.mmu.read_byte(ptr);
-                                    let value = srl_r8(value, &self.registers.flags);
-                                    self.mmu.write_byte(ptr, value);
-                                }
-                            };
-                            self.pc += 2;
-                            return 2;
-                        }
-                        _ => panic!("Bad CB Instructions"),
-                    }
-                }
-                0b01 => {
-                    // ## println!("{:#04x}: bit b3, r8", self.pc);
-                    let bit_index = (opcode & 0b0011_1000) >> 3;
-                    let value = R8::from_u8(opcode & 0b0000_0111);
-                    let value = self.registers.get_r8(value);
-                    let value = match value {
-                        R8OrMem::R8(r8) => r8.get(),
-                        R8OrMem::Ptr(ptr) => self.mmu.read_byte(ptr),
-                    };
-                    bit_b3_r8(bit_index, value, &self.registers.flags);
-                    self.pc += 2;
-                    return 2;
-                }
-                0b10 => {
-                    // ## println!("{:#04x}: res b3, r8", self.pc);
-                    let bit_index = (opcode & 0b0011_1000) >> 3;
-                    let operand = R8::from_u8(opcode & 0b0000_0111);
-                    let operand = self.registers.get_r8(operand);
-                    match operand {
-                        R8OrMem::R8(r8) => r8.set(res_b3_r8(bit_index, r8.get())),
-                        R8OrMem::Ptr(ptr) => {
-                            let value = self.mmu.read_byte(ptr);
-                            let value = res_b3_r8(bit_index, value);
-                            self.mmu.write_byte(ptr, value);
-                        }
-                    };
-                    self.pc += 2;
-                    return 2;
-                }
-                0b11 => {
-                    // ## println!("{:#04x}: set b3, r8", self.pc);
-                    let bit_index = (opcode & 0b0011_1000) >> 3;
-                    let operand = R8::from_u8(opcode & 0b0000_0111);
-                    let operand = self.registers.get_r8(operand);
-                    match operand {
-                        R8OrMem::R8(r8) => r8.set(set_b3_r8(bit_index, r8.get())),
-                        R8OrMem::Ptr(ptr) => {
-                            let value = self.mmu.read_byte(ptr);
-                            let value = set_b3_r8(bit_index, value);
-                            self.mmu.write_byte(ptr, value);
-                        }
-                    };
-                    self.pc += 2;
-                    return 2;
-                }
-                _ => unreachable!(),
-            }
-        }
-        match (opcode & 0b1100_0000) >> 6 {
-            0b00 => {
-                /* Block 0 */
-                if opcode == 0 {
-                    // ## println!("{:#04x}: nop", self.pc);
-                    self.pc += 1;
-                    1
-                } else if opcode == 24 {
-                    // ## println!("{:#04x}: jr imm8", self.pc);
+        match opcode {
+            0x00 => {
+                // ## println!("{:#04x}: nop", self.pc);
+                self.pc += 1;
+                1
+            },
+            0x18 => {
+                // ## println!("{:#04x}: jr imm8", self.pc);
+                let imm8 = self.mmu.read_byte(self.pc + 1) as i8;
+                self.pc = (self.pc as i16 + imm8 as i16) as u16;
+                self.pc += 2;
+                3
+            },
+            0x20 | 0x28 | 0x30 | 0x38 => {
+                // ## println!("{:#04x}: jr cond, imm8", self.pc);
+                let condition = (opcode & 0b0001_1000) >> 3;
+                let condition = self.registers.flags.get_condition(condition);
+                if condition {
                     let imm8 = self.mmu.read_byte(self.pc + 1) as i8;
                     self.pc = (self.pc as i16 + imm8 as i16) as u16;
                     self.pc += 2;
                     return 3;
-                } else if opcode & 0b0010_0111 == 32 {
-                    // ## println!("{:#04x}: jr cond, imm8", self.pc);
-                    let condition = (opcode & 0b0001_1000) >> 3;
-                    let condition = self.registers.flags.get_condition(condition);
-                    if condition {
-                        let imm8 = self.mmu.read_byte(self.pc + 1) as i8;
-                        self.pc = (self.pc as i16 + imm8 as i16) as u16;
-                        self.pc += 2;
-                        return 3;
-                    }
-                    self.pc += 2;
-                    return 2;
-                } else if opcode == 0b0001_0000 {
-                    // ## println!("{:#04x}: stop", self.pc);
-                    self.pc += 2;
-                    return 1;
-                } else {
-                    match opcode & 0b0000_1111 {
-                        0b0001 => {
-                            // ## println!("{:#04x}: ld r16, imm16", self.pc);
-                            let imm16 = self.mmu.read_word(self.pc + 1);
-                            let dest = R16::from_u8((opcode & 0b0011_0000) >> 4);
-                            let dest = self.registers.get_r16(dest);
-                            match dest {
-                                R16OrSP::SP => self.sp = imm16,
-                                R16OrSP::R16(hi, lo) => {
-                                    ld_r16_imm16((hi, lo), imm16);
-                                }
-                            }
-                            self.pc += 3;
-                            return 3;
-                        }
-                        0b0010 => {
-                            // ## println!("{:#04x}: ld [r16mem], a", self.pc);
-                            let dest = R16mem::from_u8((opcode & 0b0011_0000) >> 4);
-                            let action = match dest {
-                                R16mem::HLi => AfterInstruction::Increment,
-                                R16mem::HLd => AfterInstruction::Decrement,
-                                _ => AfterInstruction::None,
-                            };
-                            let dest = self.registers.get_r16mem(dest);
-                            let dest = dest.1.get() as u16 | (dest.0.get() as u16) << 8;
-                            self.mmu.write_byte(dest, self.registers.a.get());
-
-                            match action {
-                                AfterInstruction::Increment => {
-                                    inc_r16((&self.registers.h, &self.registers.l));
-                                }
-                                AfterInstruction::Decrement => {
-                                    dec_r16((&self.registers.h, &self.registers.l));
-                                }
-                                AfterInstruction::None => {}
-                            }
-                            self.pc += 1;
-                            return 2;
-                        }
-                        0b1010 => {
-                            // ## println!("{:#04x}: ld a, [r16mem]", self.pc);
-                            let source = R16mem::from_u8((opcode & 0b0011_0000) >> 4);
-                            let action = match source {
-                                R16mem::HLi => AfterInstruction::Increment,
-                                R16mem::HLd => AfterInstruction::Decrement,
-                                _ => AfterInstruction::None,
-                            };
-                            let source = self.registers.get_r16mem(source);
-                            let source = self
-                                .mmu
-                                .read_byte(source.1.get() as u16 | (source.0.get() as u16) << 8);
-                            ld_a_r16mem(&self.registers.a, source);
-
-                            match action {
-                                AfterInstruction::Increment => {
-                                    inc_r16((&self.registers.h, &self.registers.l))
-                                }
-                                AfterInstruction::Decrement => {
-                                    dec_r16((&self.registers.h, &self.registers.l))
-                                }
-                                AfterInstruction::None => {}
-                            }
-                            self.pc += 1;
-                            return 2;
-                        }
-                        0b1000 => {
-                            // ## println!("{:#04x}: ld [imm16], sp", self.pc);
-                            let imm16 = self.mmu.read_word(self.pc + 1);
-                            self.mmu.write_word(imm16, self.sp);
-                            self.pc += 3;
-                            return 5;
-                        }
-                        0b0011 => {
-                            // ## println!("{:#04x}: inc r16", self.pc);
-                            let operand = R16::from_u8((opcode & 0b0011_0000) >> 4);
-                            let operand = self.registers.get_r16(operand);
-                            match operand {
-                                R16OrSP::SP => self.sp += 1,
-                                R16OrSP::R16(hi, lo) => inc_r16((hi, lo)),
-                            }
-                            self.pc += 1;
-                            return 2;
-                        }
-                        0b1011 => {
-                            // ## println!("{:#04x}: dec r16", self.pc);
-                            let operand = R16::from_u8((opcode & 0b0011_0000) >> 4);
-                            let operand = self.registers.get_r16(operand);
-                            match operand {
-                                R16OrSP::SP => self.sp -= 1,
-                                R16OrSP::R16(hi, lo) => dec_r16((hi, lo)),
-                            }
-                            self.pc += 1;
-                            return 2;
-                        }
-                        0b1001 => {
-                            // ## println!("{:#04x}: add hl, r16", self.pc);
-                            let operand = R16::from_u8((opcode & 0b0011_0000) >> 4);
-                            let operand = self.registers.get_r16(operand);
-                            match operand {
-                                R16OrSP::SP => add_hl_sp(
-                                    (&self.registers.h, &self.registers.l),
-                                    self.sp,
-                                    &self.registers.flags,
-                                ),
-                                R16OrSP::R16(hi, lo) => add_hl_r16(
-                                    (&self.registers.h, &self.registers.l),
-                                    (hi, lo),
-                                    &self.registers.flags,
-                                ),
-                            }
-                            self.pc += 1;
-                            return 2;
-                        }
-                        0b0100 | 0b1100 => {
-                            // ## println!("{:#04x}: inc r8", self.pc);
-                            let operand = R8::from_u8((opcode & 0b0011_1000) >> 3);
-                            let operand = self.registers.get_r8(operand);
-                            match operand {
-                                R8OrMem::R8(r8) => r8.set(inc_r8(r8.get(), &self.registers.flags)),
-                                R8OrMem::Ptr(ptr) => {
-                                    let value = self.mmu.read_byte(ptr);
-                                    let value = inc_r8(value, &self.registers.flags);
-                                    self.mmu.write_byte(ptr, value);
-                                }
-                            };
-                            self.pc += 1;
-                            return 1;
-                        }
-                        0b0101 | 0b1101 => {
-                            // ## println!("{:#04x}: dec r8", self.pc);
-                            let operand = R8::from_u8((opcode & 0b0011_1000) >> 3);
-                            let operand = self.registers.get_r8(operand);
-                            match operand {
-                                R8OrMem::R8(r8) => r8.set(dec_r8(r8.get(), &self.registers.flags)),
-                                R8OrMem::Ptr(ptr) => {
-                                    let value = self.mmu.read_byte(ptr);
-                                    let value = dec_r8(value, &self.registers.flags);
-                                    self.mmu.write_byte(ptr, value);
-                                }
-                            };
-                            self.pc += 1;
-                            return 1;
-                        }
-                        0b1110 | 0b0110 => {
-                            // ## println!("{:#04x}: ld r8, imm8", self.pc);
-                            let imm8 = self.mmu.read_byte(self.pc + 1);
-                            let operand = R8::from_u8((opcode & 0b0011_1000) >> 3);
-                            let operand = self.registers.get_r8(operand);
-                            match operand {
-                                R8OrMem::R8(r8) => r8.set(imm8),
-                                R8OrMem::Ptr(ptr) => self.mmu.write_byte(ptr, imm8),
-                            };
-                            self.pc += 2;
-                            return 2;
-                        }
-                        0b0111 | 0b1111 => match (opcode & 0b0011_1000) >> 3 {
-                            0b000 => {
-                                // ## println!("{:#04x}: rlca", self.pc);
-                                self.registers
-                                    .a
-                                    .set(rlc_r8(self.registers.a.get(), &self.registers.flags));
-                                self.registers.flags.zero.set(false);
-                                self.pc += 1;
-                                return 1;
-                            }
-                            0b001 => {
-                                // ## println!("{:#04x}: rrca", self.pc);
-                                self.registers
-                                    .a
-                                    .set(rrc_r8(self.registers.a.get(), &self.registers.flags));
-                                self.registers.flags.zero.set(false);
-                                self.pc += 1;
-                                return 1;
-                            }
-                            0b010 => {
-                                // ## println!("{:#04x}: rla", self.pc);
-                                self.registers
-                                    .a
-                                    .set(rl_r8(self.registers.a.get(), &self.registers.flags));
-                                self.registers.flags.zero.set(false);
-                                self.pc += 1;
-                                return 1;
-                            }
-                            0b011 => {
-                                // ## println!("{:#04x}: rra", self.pc);
-                                self.registers
-                                    .a
-                                    .set(rr_r8(self.registers.a.get(), &self.registers.flags));
-                                self.pc += 1;
-                                self.registers.flags.zero.set(false);
-                                return 1;
-                            }
-                            0b100 => {
-                                // ## println!("{:#04x}: daa", self.pc);
-                                daa(&self.registers.a, &self.registers.flags);
-                                self.pc += 1;
-                                return 1;
-                            }
-                            0b101 => {
-                                // ## println!("{:#04x}: cpl", self.pc);
-                                cpl(&self.registers.a, &self.registers.flags);
-                                self.pc += 1;
-                                return 1;
-                            }
-                            0b110 => {
-                                // ## println!("{:#04x}: scf", self.pc);
-                                self.registers.flags.carry.set(true);
-                                self.registers.flags.subtract.set(false);
-                                self.registers.flags.half_carry.set(false);
-                                self.pc += 1;
-                                return 1;
-                            }
-                            0b111 => {
-                                // ## println!("{:#04x}: ccf", self.pc);
-                                let carry = self.registers.flags.carry.get();
-                                self.registers.flags.carry.set(!carry);
-                                self.registers.flags.subtract.set(false);
-                                self.registers.flags.half_carry.set(false);
-                                self.pc += 1;
-                                return 1;
-                            }
-                            _ => unreachable!(),
-                        },
-                        _ => {
-                            panic!("{:#04x}: Unknown opcode {}", self.pc, opcode);
-                        }
+                }
+                self.pc += 2;
+                2
+            },
+            0x10 => {
+                // ## println!("{:#04x}: stop", self.pc);
+                self.pc += 2;
+                1
+            },
+            0x01 | 0x11 | 0x21 | 0x31 => {
+                // ## println!("{:#04x}: ld r16, imm16", self.pc);
+                let imm16 = self.mmu.read_word(self.pc + 1);
+                let dest = R16::from_u8((opcode & 0b0011_0000) >> 4);
+                let dest = self.registers.get_r16(dest);
+                match dest {
+                    R16OrSP::SP => self.sp = imm16,
+                    R16OrSP::R16(hi, lo) => {
+                        ld_r16_imm16((hi, lo), imm16);
                     }
                 }
-            }
-            0b01 => {
-                /* Block 1 */
+                self.pc += 3;
+                3
+            },
+            0x02 | 0x12 | 0x22 | 0x32 => {
+                // ## println!("{:#04x}: ld [r16mem], a", self.pc);
+                let dest = R16mem::from_u8((opcode & 0b0011_0000) >> 4);
+                let action = match dest {
+                    R16mem::HLi => AfterInstruction::Increment,
+                    R16mem::HLd => AfterInstruction::Decrement,
+                    _ => AfterInstruction::None,
+                };
+                let dest = self.registers.get_r16mem(dest);
+                let dest = dest.1.get() as u16 | (dest.0.get() as u16) << 8;
+                self.mmu.write_byte(dest, self.registers.a.get());
 
-                if opcode == 0b0111_0110 {
-                    // ## println!("{:#04x}: halt", self.pc);
-                    self.state = State::Halted;
-                    self.pc += 1;
-                    return 1;
+                match action {
+                    AfterInstruction::Increment => {
+                        inc_r16((&self.registers.h, &self.registers.l));
+                    }
+                    AfterInstruction::Decrement => {
+                        dec_r16((&self.registers.h, &self.registers.l));
+                    }
+                    AfterInstruction::None => {}
                 }
+                self.pc += 1;
+                2
+            },
+            0x0A | 0x1A | 0x2A | 0x3A => {
+                // ## println!("{:#04x}: ld a, [r16mem]", self.pc);
+                let source = R16mem::from_u8((opcode & 0b0011_0000) >> 4);
+                let action = match source {
+                    R16mem::HLi => AfterInstruction::Increment,
+                    R16mem::HLd => AfterInstruction::Decrement,
+                    _ => AfterInstruction::None,
+                };
+                let source = self.registers.get_r16mem(source);
+                let source = self
+                    .mmu
+                    .read_byte(source.1.get() as u16 | (source.0.get() as u16) << 8);
+                ld_a_r16mem(&self.registers.a, source);
 
+                match action {
+                    AfterInstruction::Increment => {
+                        inc_r16((&self.registers.h, &self.registers.l))
+                    }
+                    AfterInstruction::Decrement => {
+                        dec_r16((&self.registers.h, &self.registers.l))
+                    }
+                    AfterInstruction::None => {}
+                }
+                self.pc += 1;
+                2
+            },
+            0x08 => {
+                // ## println!("{:#04x}: ld [imm16], sp", self.pc);
+                let imm16 = self.mmu.read_word(self.pc + 1);
+                self.mmu.write_word(imm16, self.sp);
+                self.pc += 3;
+                5
+            },
+            0x03 | 0x13 | 0x23 | 0x33 => {
+                // ## println!("{:#04x}: inc r16", self.pc);
+                let operand = R16::from_u8((opcode & 0b0011_0000) >> 4);
+                let operand = self.registers.get_r16(operand);
+                match operand {
+                    R16OrSP::SP => self.sp += 1,
+                    R16OrSP::R16(hi, lo) => inc_r16((hi, lo)),
+                }
+                self.pc += 1;
+                2
+            },
+            0x0B | 0x1B | 0x2B | 0x3B => {
+                // ## println!("{:#04x}: dec r16", self.pc);
+                let operand = R16::from_u8((opcode & 0b0011_0000) >> 4);
+                let operand = self.registers.get_r16(operand);
+                match operand {
+                    R16OrSP::SP => self.sp -= 1,
+                    R16OrSP::R16(hi, lo) => dec_r16((hi, lo)),
+                }
+                self.pc += 1;
+                2
+            },
+            0x09 | 0x19 | 0x29 | 0x39 => {
+                // ## println!("{:#04x}: add hl, r16", self.pc);
+                let operand = R16::from_u8((opcode & 0b0011_0000) >> 4);
+                let operand = self.registers.get_r16(operand);
+                match operand {
+                    R16OrSP::SP => add_hl_sp(
+                        (&self.registers.h, &self.registers.l),
+                        self.sp,
+                        &self.registers.flags,
+                    ),
+                    R16OrSP::R16(hi, lo) => add_hl_r16(
+                        (&self.registers.h, &self.registers.l),
+                        (hi, lo),
+                        &self.registers.flags,
+                    ),
+                }
+                self.pc += 1;
+                2
+            },
+            0x04 | 0x0C | 0x14 | 0x1C | 0x24 | 0x2C | 0x34 | 0x3C => {
+                // ## println!("{:#04x}: inc r8", self.pc);
+                let operand = R8::from_u8((opcode & 0b0011_1000) >> 3);
+                let operand = self.registers.get_r8(operand);
+                match operand {
+                    R8OrMem::R8(r8) => r8.set(inc_r8(r8.get(), &self.registers.flags)),
+                    R8OrMem::Ptr(ptr) => {
+                        let value = self.mmu.read_byte(ptr);
+                        let value = inc_r8(value, &self.registers.flags);
+                        self.mmu.write_byte(ptr, value);
+                    }
+                };
+                self.pc += 1;
+                1
+            },
+            0x05 | 0x0D | 0x15 | 0x1D | 0x25 | 0x2D | 0x35 | 0x3D => {
+                // ## println!("{:#04x}: dec r8", self.pc);
+                let operand = R8::from_u8((opcode & 0b0011_1000) >> 3);
+                let operand = self.registers.get_r8(operand);
+                match operand {
+                    R8OrMem::R8(r8) => r8.set(dec_r8(r8.get(), &self.registers.flags)),
+                    R8OrMem::Ptr(ptr) => {
+                        let value = self.mmu.read_byte(ptr);
+                        let value = dec_r8(value, &self.registers.flags);
+                        self.mmu.write_byte(ptr, value);
+                    }
+                };
+                self.pc += 1;
+                1
+            },
+            0x06 | 0x0E | 0x16 | 0x1E | 0x26 | 0x2E | 0x36 | 0x3E => {
+                // ## println!("{:#04x}: ld r8, imm8", self.pc);
+                let imm8 = self.mmu.read_byte(self.pc + 1);
+                let operand = R8::from_u8((opcode & 0b0011_1000) >> 3);
+                let operand = self.registers.get_r8(operand);
+                match operand {
+                    R8OrMem::R8(r8) => r8.set(imm8),
+                    R8OrMem::Ptr(ptr) => self.mmu.write_byte(ptr, imm8),
+                };
+                self.pc += 2;
+                2
+            },
+            0x07 => {
+                // ## println!("{:#04x}: rlca", self.pc);
+                self.registers
+                    .a
+                    .set(rlc_r8(self.registers.a.get(), &self.registers.flags));
+                self.registers.flags.zero.set(false);
+                self.pc += 1;
+                1
+            },
+            0x0F => {
+                // ## println!("{:#04x}: rrca", self.pc);
+                self.registers
+                    .a
+                    .set(rrc_r8(self.registers.a.get(), &self.registers.flags));
+                self.registers.flags.zero.set(false);
+                self.pc += 1;
+                1
+            },
+            0x17 => {
+                // ## println!("{:#04x}: rla", self.pc);
+                self.registers
+                    .a
+                    .set(rl_r8(self.registers.a.get(), &self.registers.flags));
+                self.registers.flags.zero.set(false);
+                self.pc += 1;
+                1
+            },
+            0x1F => {
+                // ## println!("{:#04x}: rra", self.pc);
+                self.registers
+                    .a
+                    .set(rr_r8(self.registers.a.get(), &self.registers.flags));
+                self.pc += 1;
+                self.registers.flags.zero.set(false);
+                1
+            },
+            0x27 => {
+                // ## println!("{:#04x}: daa", self.pc);
+                daa(&self.registers.a, &self.registers.flags);
+                self.pc += 1;
+                1
+            },
+            0x2F => {
+                // ## println!("{:#04x}: cpl", self.pc);
+                cpl(&self.registers.a, &self.registers.flags);
+                self.pc += 1;
+                1
+            },
+            0x37 => {
+                // ## println!("{:#04x}: scf", self.pc);
+                self.registers.flags.carry.set(true);
+                self.registers.flags.subtract.set(false);
+                self.registers.flags.half_carry.set(false);
+                self.pc += 1;
+                1
+            },
+            0x3F => {
+                // ## println!("{:#04x}: ccf", self.pc);
+                let carry = self.registers.flags.carry.get();
+                self.registers.flags.carry.set(!carry);
+                self.registers.flags.subtract.set(false);
+                self.registers.flags.half_carry.set(false);
+                self.pc += 1;
+                1
+            },
+            0x76 => {
+                // ## println!("{:#04x}: halt", self.pc);
+                self.state = State::Halted;
+                self.pc += 1;
+                1
+            },
+            0x40..=0x7F => {
                 // ## println!("{:#04x}: ld r8, r8", self.pc);
                 let source = R8::from_u8(opcode & 0b0000_0111);
                 let source = self.registers.get_r8(source);
@@ -490,11 +315,10 @@ impl Cpu {
                 };
                 self.pc += 1;
                 1
-            }
-            0b10 => {
-                /* Block 2 */
+            },
+            0x80..=0x87 => {
+                // ## println!("{:#04x}: add a, r8", self.pc);
                 let operand = R8::from_u8(opcode & 0b0000_0111);
-
                 let a = &self.registers.a;
                 let value = self.registers.get_r8(operand);
                 let value = match value {
@@ -502,422 +326,620 @@ impl Cpu {
                     R8OrMem::Ptr(ptr) => self.mmu.read_byte(ptr),
                 };
 
-                match (opcode & 0b0011_1000) >> 3 {
-                    0b0000 => {
-                        // ## println!("{:#04x}: add a, r8", self.pc);
-                        add_a_r8(a, value, &self.registers.flags);
-                        self.pc += 1;
-                        1
-                    }
-                    0b0001 => {
-                        // ## println!("{:#04x}: adc a, r8", self.pc);
-                        adc_a_r8(a, value, &self.registers.flags);
-                        self.pc += 1;
-                        1
-                    }
-                    0b0010 => {
-                        // ## println!("{:#04x}: sub a, r8", self.pc);
-                        sub_a_r8(a, value, &self.registers.flags);
-                        self.pc += 1;
-                        1
-                    }
-                    0b0011 => {
-                        // ## println!("{:#04x}: sbc a, r8", self.pc);
-                        sbc_a_r8(a, value, &self.registers.flags);
-                        self.pc += 1;
-                        1
-                    }
-                    0b0100 => {
-                        // ## println!("{:#04x}: and a, r8", self.pc);
-                        and_a_r8(a, value, &self.registers.flags);
-                        self.pc += 1;
-                        1
-                    }
-                    0b0101 => {
-                        // ## println!("{:#04x}: xor a, r8", self.pc);
-                        xor_a_r8(a, value, &self.registers.flags);
-                        self.pc += 1;
-                        1
-                    }
-                    0b0110 => {
-                        // ## println!("{:#04x}: or a, r8", self.pc);
-                        or_a_r8(a, value, &self.registers.flags);
-                        self.pc += 1;
-                        1
-                    }
-                    0b0111 => {
-                        // ## println!("{:#04x}: cp a, r8", self.pc);
-                        cp_a_r8(a, value, &self.registers.flags);
-                        self.pc += 1;
-                        1
-                    }
-                    _ => {
-                        // ## println!("{:#04x}: Unknown opcode {}", self.pc, opcode);
-                        unreachable!()
-                    }
-                }
-            }
-            0b11 => {
-                /* Block 3 */
-                if opcode & 0b0000_0111 == 0b110 {
-                    let imm8 = self.mmu.read_byte(self.pc + 1);
-                    let a = &self.registers.a;
-                    match (opcode & 0b0011_1000) >> 3 {
-                        0b000 => {
-                            // ## println!("{:#04x}: add a, imm8", self.pc);
-                            add_a_imm8(a, imm8, &self.registers.flags);
-                            self.pc += 2;
-                            return 2;
-                        }
-                        0b001 => {
-                            // ## println!("{:#04x}: adc a, imm8", self.pc);
-                            adc_a_imm8(a, imm8, &self.registers.flags);
-                            self.pc += 2;
-                            return 2;
-                        }
-                        0b010 => {
-                            // ## println!("{:#04x}: sub a, imm8", self.pc);
-                            sub_a_imm8(a, imm8, &self.registers.flags);
-                            self.pc += 2;
-                            return 2;
-                        }
-                        0b011 => {
-                            // ## println!("{:#04x}: sbc a, imm8", self.pc);
-                            sbc_a_imm8(a, imm8, &self.registers.flags);
-                            self.pc += 2;
-                            return 2;
-                        }
-                        0b100 => {
-                            // ## println!("{:#04x}: and a, imm8", self.pc);
-                            and_a_imm8(a, imm8, &self.registers.flags);
-                            self.pc += 2;
-                            return 2;
-                        }
-                        0b101 => {
-                            // ## println!("{:#04x}: xor a, imm8", self.pc);
-                            xor_a_imm8(a, imm8, &self.registers.flags);
-                            self.pc += 2;
-                            return 2;
-                        }
-                        0b110 => {
-                            // ## println!("{:#04x}: or a, imm8", self.pc);
-                            or_a_imm8(a, imm8, &self.registers.flags);
-                            self.pc += 2;
-                            return 1;
-                        }
-                        0b111 => {
-                            // ## println!("{:#04x}: cp a, imm8", self.pc);
-                            cp_a_imm8(a, imm8, &self.registers.flags);
-                            self.pc += 2;
-                            return 2;
-                        }
-                        _ => {
-                            unreachable!();
-                        }
-                    }
-                }
+                add_a_r8(a, value, &self.registers.flags);
+                self.pc += 1;
+                1
+            },
+            0x88..=0x8F => {
+                // ## println!("{:#04x}: adc a, r8", self.pc);
+                let operand = R8::from_u8(opcode & 0b0000_0111);
+                let a = &self.registers.a;
+                let value = self.registers.get_r8(operand);
+                let value = match value {
+                    R8OrMem::R8(r8) => r8.get(),
+                    R8OrMem::Ptr(ptr) => self.mmu.read_byte(ptr),
+                };
 
-                if opcode & 0b0000_0111 == 0b111 {
-                    // ## println!("{:#04x}: rst n", self.pc);
-                    let n = (opcode & 0b0011_1000) >> 3;
-                    self.mmu.write_word(self.sp - 2, self.pc + 1);
-                    self.sp -= 2;
-                    self.pc = n as u16 * 8;
+                adc_a_r8(a, value, &self.registers.flags);
+                self.pc += 1;
+                1
+            },
+            0x90..=0x97 => {
+                // ## println!("{:#04x}: sub a, r8", self.pc);
+                let operand = R8::from_u8(opcode & 0b0000_0111);
+                let a = &self.registers.a;
+                let value = self.registers.get_r8(operand);
+                let value = match value {
+                    R8OrMem::R8(r8) => r8.get(),
+                    R8OrMem::Ptr(ptr) => self.mmu.read_byte(ptr),
+                };
+
+                sub_a_r8(a, value, &self.registers.flags);
+                self.pc += 1;
+                1
+            },
+            0x98..=0x9F => {
+                // ## println!("{:#04x}: sbc a, r8", self.pc);
+                let operand = R8::from_u8(opcode & 0b0000_0111);
+                let a = &self.registers.a;
+                let value = self.registers.get_r8(operand);
+                let value = match value {
+                    R8OrMem::R8(r8) => r8.get(),
+                    R8OrMem::Ptr(ptr) => self.mmu.read_byte(ptr),
+                };
+
+                sbc_a_r8(a, value, &self.registers.flags);
+                self.pc += 1;
+                1
+            },
+            0xA0..=0xA7 => {
+                // ## println!("{:#04x}: and a, r8", self.pc);
+                let operand = R8::from_u8(opcode & 0b0000_0111);
+                let a = &self.registers.a;
+                let value = self.registers.get_r8(operand);
+                let value = match value {
+                    R8OrMem::R8(r8) => r8.get(),
+                    R8OrMem::Ptr(ptr) => self.mmu.read_byte(ptr),
+                };
+
+                and_a_r8(a, value, &self.registers.flags);
+                self.pc += 1;
+                1
+            },
+            0xA8..=0xAF => {
+                // ## println!("{:#04x}: xor a, r8", self.pc);
+                let operand = R8::from_u8(opcode & 0b0000_0111);
+                let a = &self.registers.a;
+                let value = self.registers.get_r8(operand);
+                let value = match value {
+                    R8OrMem::R8(r8) => r8.get(),
+                    R8OrMem::Ptr(ptr) => self.mmu.read_byte(ptr),
+                };
+
+                xor_a_r8(a, value, &self.registers.flags);
+                self.pc += 1;
+                1
+            },
+            0xB0..=0xB7 => {
+                // ## println!("{:#04x}: or a, r8", self.pc);
+                let operand = R8::from_u8(opcode & 0b0000_0111);
+                let a = &self.registers.a;
+                let value = self.registers.get_r8(operand);
+                let value = match value {
+                    R8OrMem::R8(r8) => r8.get(),
+                    R8OrMem::Ptr(ptr) => self.mmu.read_byte(ptr),
+                };
+
+                or_a_r8(a, value, &self.registers.flags);
+                self.pc += 1;
+                1
+            },
+            0xB8..=0xBF => {
+                // ## println!("{:#04x}: cp a, r8", self.pc);
+                let operand = R8::from_u8(opcode & 0b0000_0111);
+                let a = &self.registers.a;
+                let value = self.registers.get_r8(operand);
+                let value = match value {
+                    R8OrMem::R8(r8) => r8.get(),
+                    R8OrMem::Ptr(ptr) => self.mmu.read_byte(ptr),
+                };
+
+                cp_a_r8(a, value, &self.registers.flags);
+                self.pc += 1;
+                1
+            },
+            0xC6 => {
+                // ## println!("{:#04x}: add a, imm8", self.pc);
+                let imm8 = self.mmu.read_byte(self.pc + 1);
+                let a = &self.registers.a;
+
+                add_a_imm8(a, imm8, &self.registers.flags);
+                self.pc += 2;
+                2
+            },
+            0xCE => {
+                // ## println!("{:#04x}: adc a, imm8", self.pc);
+                let imm8 = self.mmu.read_byte(self.pc + 1);
+                let a = &self.registers.a;
+
+                adc_a_imm8(a, imm8, &self.registers.flags);
+                self.pc += 2;
+                2
+            },
+            0xD6 => {
+                // ## println!("{:#04x}: sub a, imm8", self.pc);
+                let imm8 = self.mmu.read_byte(self.pc + 1);
+                let a = &self.registers.a;
+
+                sub_a_imm8(a, imm8, &self.registers.flags);
+                self.pc += 2;
+                2
+            },
+            0xDE => {
+                // ## println!("{:#04x}: sbc a, imm8", self.pc);
+                let imm8 = self.mmu.read_byte(self.pc + 1);
+                let a = &self.registers.a;
+
+                sbc_a_imm8(a, imm8, &self.registers.flags);
+                self.pc += 2;
+                2
+            },
+            0xE6 => {
+                // ## println!("{:#04x}: and a, imm8", self.pc);
+                let imm8 = self.mmu.read_byte(self.pc + 1);
+                let a = &self.registers.a;
+
+                and_a_imm8(a, imm8, &self.registers.flags);
+                self.pc += 2;
+                2
+            },
+            0xEE => {
+                // ## println!("{:#04x}: xor a, imm8", self.pc);
+                let imm8 = self.mmu.read_byte(self.pc + 1);
+                let a = &self.registers.a;
+
+                xor_a_imm8(a, imm8, &self.registers.flags);
+                self.pc += 2;
+                2
+            },
+            0xF6 => {
+                // ## println!("{:#04x}: or a, imm8", self.pc);
+                let imm8 = self.mmu.read_byte(self.pc + 1);
+                let a = &self.registers.a;
+
+                or_a_imm8(a, imm8, &self.registers.flags);
+                self.pc += 2;
+                2
+            },
+            0xFE => {
+                // ## println!("{:#04x}: cp a, imm8", self.pc);
+                let imm8 = self.mmu.read_byte(self.pc + 1);
+                let a = &self.registers.a;
+
+                cp_a_imm8(a, imm8, &self.registers.flags);
+                self.pc += 2;
+                2
+            },
+            0xC7 | 0xCF | 0xD7 | 0xDF | 0xE7 | 0xEF | 0xF7 | 0xFF => {
+                // ## println!("{:#04x}: rst n", self.pc);
+                let n = (opcode & 0b0011_1000) >> 3;
+                self.mmu.write_word(self.sp - 2, self.pc + 1);
+                self.sp -= 2;
+                self.pc = n as u16 * 8;
+                4
+            },
+            0xE2 => {
+                // ## println!("{:#04x}: ld (c), a", self.pc);
+                let a = self.registers.a.get();
+                let c = self.registers.c.get();
+                self.mmu.write_byte(0xFF00 + c as u16, a);
+                self.pc += 1;
+                2
+            }
+            0xF2 => {
+                // ## println!("{:#04x}: ld a, (c)", self.pc);
+                let a = &self.registers.a;
+                let c = self.registers.c.get() as u16;
+                let c = self.mmu.read_byte(0xFF00_u16 + c);
+                ld_a_c(a, c);
+                self.pc += 1;
+                2
+            }
+            0xE0 => {
+                // ## println!("{:#04x}: ldh [imm8], a", self.pc);
+                let imm8 = self.mmu.read_byte(self.pc + 1);
+                self.mmu
+                    .write_byte(0xFF00 + imm8 as u16, self.registers.a.get());
+                self.pc += 2;
+                3
+            }
+            0xF0 => {
+                // ## println!("{:#04x}: ldh a, [imm8]", self.pc);
+                let imm8 = self.mmu.read_byte(self.pc + 1);
+                let imm8 = self.mmu.read_byte(0xFF00 + imm8 as u16);
+                ldh_a_imm8(&self.registers.a, imm8);
+                self.pc += 2;
+                3
+            }
+            0xEA => {
+                // ## println!("{:#04x}: ld [imm16], a", self.pc);
+                let imm16 = self.mmu.read_word(self.pc + 1);
+                self.mmu.write_byte(imm16, self.registers.a.get());
+                self.pc += 3;
+                4
+            }
+            0xCA => {
+                // ## println!("{:#04x}: jp z, imm16", self.pc);
+                if self.registers.flags.zero.get() {
+                    self.pc = self.mmu.read_word(self.pc + 1);
                     return 4;
                 }
-
-                match opcode {
-                    0b1110_0010 => {
-                        // ## println!("{:#04x}: ld (c), a", self.pc);
-                        let a = self.registers.a.get();
-                        let c = self.registers.c.get();
-                        self.mmu.write_byte(0xFF00 + c as u16, a);
-                        self.pc += 1;
-                        return 2;
-                    }
-                    0b1111_0010 => {
-                        // ## println!("{:#04x}: ld a, (c)", self.pc);
-                        let a = &self.registers.a;
-                        let c = self.registers.c.get() as u16;
-                        let c = self.mmu.read_byte(0xFF00_u16 + c);
-                        ld_a_c(a, c);
-                        self.pc += 1;
-                        return 2;
-                    }
-                    0b1110_0000 => {
-                        // ## println!("{:#04x}: ldh [imm8], a", self.pc);
-                        let imm8 = self.mmu.read_byte(self.pc + 1);
-                        self.mmu
-                            .write_byte(0xFF00 + imm8 as u16, self.registers.a.get());
-                        self.pc += 2;
-                        return 3;
-                    }
-                    0b1111_0000 => {
-                        // ## println!("{:#04x}: ldh a, [imm8]", self.pc);
-                        let imm8 = self.mmu.read_byte(self.pc + 1);
-                        let imm8 = self.mmu.read_byte(0xFF00 + imm8 as u16);
-                        ldh_a_imm8(&self.registers.a, imm8);
-                        self.pc += 2;
-                        return 3;
-                    }
-                    0b1110_1010 => {
-                        // ## println!("{:#04x}: ld [imm16], a", self.pc);
-                        let imm16 = self.mmu.read_word(self.pc + 1);
-                        self.mmu.write_byte(imm16, self.registers.a.get());
-                        self.pc += 3;
-                        return 4;
-                    }
-                    0b1100_1010 => {
-                        // ## println!("{:#04x}: jp z, imm16", self.pc);
-                        if self.registers.flags.zero.get() {
-                            self.pc = self.mmu.read_word(self.pc + 1);
-                            return 4;
-                        }
-                        self.pc += 3;
-                        return 3;
-                    }
-                    0b1100_0010 => {
-                        // ## println!("{:#04x}: jp nz, imm16", self.pc);
-                        if !self.registers.flags.zero.get() {
-                            self.pc = self.mmu.read_word(self.pc + 1);
-                            return 4;
-                        }
-                        self.pc += 3;
-                        return 3;
-                    }
-                    0b1101_1010 => {
-                        // ## println!("{:#04x}: jp c, imm16", self.pc);
-                        if self.registers.flags.carry.get() {
-                            self.pc = self.mmu.read_word(self.pc + 1);
-                            return 4;
-                        }
-                        self.pc += 3;
-                        return 3;
-                    }
-                    0b1101_0010 => {
-                        // ## println!("{:#04x}: jp nc, imm16", self.pc);
-                        if !self.registers.flags.carry.get() {
-                            self.pc = self.mmu.read_word(self.pc + 1);
-                            return 4;
-                        }
-                        self.pc += 3;
-                        return 3;
-                    }
-                    0b1100_0100 => {
-                        // ## println!("{:#04x}: call nz, imm16", self.pc);
-                        if !self.registers.flags.zero.get() {
-                            self.mmu.write_word(self.sp - 2, self.pc + 3);
-                            self.sp -= 2;
-                            self.pc = self.mmu.read_word(self.pc + 1);
-                            return 6;
-                        }
-                        self.pc += 3;
-                        return 3;
-                    }
-                    0b1100_1100 => {
-                        // ## println!("{:#04x}: call z, imm16", self.pc);
-                        if self.registers.flags.zero.get() {
-                            self.mmu.write_word(self.sp - 2, self.pc + 3);
-                            self.sp -= 2;
-                            self.pc = self.mmu.read_word(self.pc + 1);
-                            return 6;
-                        }
-                        self.pc += 3;
-                        return 3;
-                    }
-                    0b1101_1100 => {
-                        // ## println!("{:#04x}: call c, imm16", self.pc);
-                        if self.registers.flags.carry.get() {
-                            self.mmu.write_word(self.sp - 2, self.pc + 3);
-                            self.sp -= 2;
-                            self.pc = self.mmu.read_word(self.pc + 1);
-                            return 6;
-                        }
-                        self.pc += 3;
-                        return 3;
-                    }
-                    0b1101_0100 => {
-                        // ## println!("{:#04x}: call nc, imm16", self.pc);
-                        if !self.registers.flags.carry.get() {
-                            self.mmu.write_word(self.sp - 2, self.pc + 3);
-                            self.sp -= 2;
-                            self.pc = self.mmu.read_word(self.pc + 1);
-                            return 6;
-                        }
-                        self.pc += 3;
-                        return 3;
-                    }
-                    0b1111_1010 => {
-                        // ## println!("{:#04x}: ld a, [imm16]", self.pc);
-                        let imm16 = self.mmu.read_word(self.pc + 1);
-                        let imm16 = self.mmu.read_byte(imm16);
-                        ld_a_imm16(&self.registers.a, imm16);
-                        self.pc += 3;
-                        return 4;
-                    }
-                    0b1111_1001 => {
-                        // ## println!("{:#04x}: ld sp, hl", self.pc);
-                        self.sp =
-                            self.registers.l.get() as u16 | (self.registers.h.get() as u16) << 8;
-                        self.pc += 1;
-                        return 2;
-                    }
-                    0b1111_1000 => {
-                        // ## println!("{:#04x}: ld hl, sp + imm8", self.pc);
-                        let imm8 = self.mmu.read_byte(self.pc + 1) as i8;
-                        add_hl_sp_imm8(
-                            (&self.registers.h, &self.registers.l),
-                            self.sp,
-                            imm8,
-                            &self.registers.flags,
-                        );
-                        self.pc += 2;
-                        return 3;
-                    }
-                    0b1100_1101 => {
-                        // ## println!("{:#04x}: call imm16", self.pc);
-                        self.mmu.write_word(self.sp - 2, self.pc + 3);
-                        self.sp -= 2;
-                        self.pc = self.mmu.read_word(self.pc + 1);
-                        return 6;
-                    }
-                    0b1100_1001 => {
-                        // ## println!("{:#04x}: ret", self.pc);
-                        self.pc = self.mmu.read_word(self.sp);
-                        self.sp += 2;
-                        return 4;
-                    }
-                    0b1101_1001 => {
-                        // ## println!("{:#04x}: reti", self.pc);
-                        self.pc = self.mmu.read_word(self.sp);
-                        self.sp += 2;
-                        self.state = State::Ime;
-                        // self.ime = true;
-                        return 4;
-                    }
-                    0b1100_0011 => {
-                        // ## println!("{:#04x}: jp imm16", self.pc);
-                        self.pc = self.mmu.read_word(self.pc + 1);
-                        return 4;
-                    }
-                    0b1110_1000 => {
-                        // ## println!("{:#04x}: add sp, imm8", self.pc);
-                        let imm8 = self.mmu.read_byte(self.pc + 1) as i8;
-                        self.sp = add_sp_imm8(self.sp, imm8, &self.registers.flags);
-                        self.pc += 2;
-                        return 4;
-                    }
-                    0b1110_1001 => {
-                        // ## println!("{:#04x}: jp hl", self.pc);
-                        self.pc =
-                            (self.registers.h.get() as u16) << 8 | self.registers.l.get() as u16;
-                        return 1;
-                    }
-                    0b1100_0000 => {
-                        // ## println!("{:#04x}: ret nz", self.pc);
-                        if !self.registers.flags.zero.get() {
-                            self.pc = self.mmu.read_word(self.sp);
-                            self.sp += 2;
-                            return 5;
-                        }
-                        self.pc += 1;
-                        return 2;
-                    }
-                    0b1100_1000 => {
-                        // ## println!("{:#04x}: ret z", self.pc);
-                        if self.registers.flags.zero.get() {
-                            self.pc = self.mmu.read_word(self.sp);
-                            self.sp += 2;
-                            return 5;
-                        }
-                        self.pc += 1;
-                        return 2;
-                    }
-                    0b1101_0000 => {
-                        // ## println!("{:#04x}: ret nc", self.pc);
-                        if !self.registers.flags.carry.get() {
-                            self.pc = self.mmu.read_word(self.sp);
-                            self.sp += 2;
-                            return 5;
-                        }
-                        self.pc += 1;
-                        return 2;
-                    }
-                    0b1101_1000 => {
-                        // ## println!("{:#04x}: ret c", self.pc);
-                        if self.registers.flags.carry.get() {
-                            self.pc = self.mmu.read_word(self.sp);
-                            self.sp += 2;
-                            return 5;
-                        }
-                        self.pc += 1;
-                        return 2;
-                    }
-                    0b1111_0011 => {
-                        // ## println!("{:#04x}: di", self.pc);
-                        self.ime = false;
-                        self.state = State::Running;
-                        self.pc += 1;
-                        return 1;
-                    }
-                    0b1111_1011 => {
-                        // ## println!("{:#04x}: ei", self.pc);
-                        self.ime = true;
-                        self.pc += 1;
-                        return 1;
-                    }
-                    _ => {}
-                }
-
-                match opcode & 0b0000_1111 {
-                    0b0001 => {
-                        // ## println!("{:#04x}: pop r16stk", self.pc);
-                        let register = R16stk::from_u8((opcode & 0b0011_0000) >> 4);
-                        match register {
-                            R16stk::AF => {
-                                let lo = self.mmu.read_byte(self.sp);
-                                let hi = self.mmu.read_byte(self.sp + 1);
-                                self.registers.a.set(hi);
-                                self.registers.flags.set_from_u8(lo);
-                            }
-                            _ => {
-                                let register = self.registers.get_r16stk(register);
-                                let lo = self.mmu.read_byte(self.sp);
-                                let hi = self.mmu.read_byte(self.sp + 1);
-                                ld_r16_imm16(register, (hi as u16) << 8 | lo as u16);
-                            }
-                        }
-                        self.sp += 2;
-                        self.pc += 1;
-                        return 3;
-                    }
-                    0b0101 => {
-                        // ## println!("{:#04x}: push r16stk", self.pc);
-                        let register = R16stk::from_u8((opcode & 0b0011_0000) >> 4);
-                        match register {
-                            R16stk::AF => {
-                                let hi = self.registers.a.get();
-                                let lo = self.registers.flags.to_u8();
-                                self.mmu
-                                    .write_word(self.sp - 2, (hi as u16) << 8 | lo as u16);
-                            }
-                            _ => {
-                                let register = self.registers.get_r16stk(register);
-                                let hi = register.0.get();
-                                let lo = register.1.get();
-                                self.mmu
-                                    .write_word(self.sp - 2, (hi as u16) << 8 | lo as u16);
-                            }
-                        }
-                        self.sp -= 2;
-                        self.pc += 1;
-                        return 4;
-                    }
-                    _ => {}
-                }
-                panic!("{:#04x}: Block 3 - Opcode {:#04x}", self.pc, opcode);
+                self.pc += 3;
+                3
             }
-            _ => unreachable!(),
+            0xC2 => {
+                // ## println!("{:#04x}: jp nz, imm16", self.pc);
+                if !self.registers.flags.zero.get() {
+                    self.pc = self.mmu.read_word(self.pc + 1);
+                    return 4;
+                }
+                self.pc += 3;
+                3
+            }
+            0xDA => {
+                // ## println!("{:#04x}: jp c, imm16", self.pc);
+                if self.registers.flags.carry.get() {
+                    self.pc = self.mmu.read_word(self.pc + 1);
+                    return 4;
+                }
+                self.pc += 3;
+                3
+            }
+            0xD2 => {
+                // ## println!("{:#04x}: jp nc, imm16", self.pc);
+                if !self.registers.flags.carry.get() {
+                    self.pc = self.mmu.read_word(self.pc + 1);
+                    return 4;
+                }
+                self.pc += 3;
+                3
+            }
+            0xC4 => {
+                // ## println!("{:#04x}: call nz, imm16", self.pc);
+                if !self.registers.flags.zero.get() {
+                    self.mmu.write_word(self.sp - 2, self.pc + 3);
+                    self.sp -= 2;
+                    self.pc = self.mmu.read_word(self.pc + 1);
+                    return 6;
+                }
+                self.pc += 3;
+                3
+            }
+            0xCC => {
+                // ## println!("{:#04x}: call z, imm16", self.pc);
+                if self.registers.flags.zero.get() {
+                    self.mmu.write_word(self.sp - 2, self.pc + 3);
+                    self.sp -= 2;
+                    self.pc = self.mmu.read_word(self.pc + 1);
+                    return 6;
+                }
+                self.pc += 3;
+                3
+            }
+            0xDC => {
+                // ## println!("{:#04x}: call c, imm16", self.pc);
+                if self.registers.flags.carry.get() {
+                    self.mmu.write_word(self.sp - 2, self.pc + 3);
+                    self.sp -= 2;
+                    self.pc = self.mmu.read_word(self.pc + 1);
+                    return 6;
+                }
+                self.pc += 3;
+                3
+            }
+            0xD4 => {
+                // ## println!("{:#04x}: call nc, imm16", self.pc);
+                if !self.registers.flags.carry.get() {
+                    self.mmu.write_word(self.sp - 2, self.pc + 3);
+                    self.sp -= 2;
+                    self.pc = self.mmu.read_word(self.pc + 1);
+                    return 6;
+                }
+                self.pc += 3;
+                3
+            }
+            0xFA => {
+                // ## println!("{:#04x}: ld a, [imm16]", self.pc);
+                let imm16 = self.mmu.read_word(self.pc + 1);
+                let imm16 = self.mmu.read_byte(imm16);
+                ld_a_imm16(&self.registers.a, imm16);
+                self.pc += 3;
+                4
+            }
+            0xF9 => {
+                // ## println!("{:#04x}: ld sp, hl", self.pc);
+                self.sp =
+                    self.registers.l.get() as u16 | (self.registers.h.get() as u16) << 8;
+                self.pc += 1;
+                2
+            }
+            0xF8 => {
+                // ## println!("{:#04x}: ld hl, sp + imm8", self.pc);
+                let imm8 = self.mmu.read_byte(self.pc + 1) as i8;
+                add_hl_sp_imm8(
+                    (&self.registers.h, &self.registers.l),
+                    self.sp,
+                    imm8,
+                    &self.registers.flags,
+                );
+                self.pc += 2;
+                3
+            }
+            0xCD => {
+                // ## println!("{:#04x}: call imm16", self.pc);
+                self.mmu.write_word(self.sp - 2, self.pc + 3);
+                self.sp -= 2;
+                self.pc = self.mmu.read_word(self.pc + 1);
+                6
+            }
+            0xC9 => {
+                // ## println!("{:#04x}: ret", self.pc);
+                self.pc = self.mmu.read_word(self.sp);
+                self.sp += 2;
+                4
+            }
+            0xD9 => {
+                // ## println!("{:#04x}: reti", self.pc);
+                self.pc = self.mmu.read_word(self.sp);
+                self.sp += 2;
+                self.state = State::Ime;
+                4
+            }
+            0xC3 => {
+                // ## println!("{:#04x}: jp imm16", self.pc);
+                self.pc = self.mmu.read_word(self.pc + 1);
+                4
+            }
+            0xE8 => {
+                // ## println!("{:#04x}: add sp, imm8", self.pc);
+                let imm8 = self.mmu.read_byte(self.pc + 1) as i8;
+                self.sp = add_sp_imm8(self.sp, imm8, &self.registers.flags);
+                self.pc += 2;
+                4
+            }
+            0xE9 => {
+                // ## println!("{:#04x}: jp hl", self.pc);
+                self.pc =
+                    (self.registers.h.get() as u16) << 8 | self.registers.l.get() as u16;
+                1
+            }
+            0xC0 => {
+                // ## println!("{:#04x}: ret nz", self.pc);
+                if !self.registers.flags.zero.get() {
+                    self.pc = self.mmu.read_word(self.sp);
+                    self.sp += 2;
+                    return 5;
+                }
+                self.pc += 1;
+                2
+            }
+            0xC8 => {
+                // ## println!("{:#04x}: ret z", self.pc);
+                if self.registers.flags.zero.get() {
+                    self.pc = self.mmu.read_word(self.sp);
+                    self.sp += 2;
+                    return 5;
+                }
+                self.pc += 1;
+                2
+            }
+            0xD0 => {
+                // ## println!("{:#04x}: ret nc", self.pc);
+                if !self.registers.flags.carry.get() {
+                    self.pc = self.mmu.read_word(self.sp);
+                    self.sp += 2;
+                    return 5;
+                }
+                self.pc += 1;
+                2
+            }
+            0xD8 => {
+                // ## println!("{:#04x}: ret c", self.pc);
+                if self.registers.flags.carry.get() {
+                    self.pc = self.mmu.read_word(self.sp);
+                    self.sp += 2;
+                    return 5;
+                }
+                self.pc += 1;
+                2
+            }
+            0xF3 => {
+                // ## println!("{:#04x}: di", self.pc);
+                self.ime = false;
+                self.state = State::Running;
+                self.pc += 1;
+                1
+            }
+            0xFB => {
+                // ## println!("{:#04x}: ei", self.pc);
+                self.ime = true;
+                self.pc += 1;
+                1
+            },
+            0xC1 | 0xD1 | 0xE1 | 0xF1 => {
+                // ## println!("{:#04x}: pop r16stk", self.pc);
+                let register = R16stk::from_u8((opcode & 0b0011_0000) >> 4);
+                match register {
+                    R16stk::AF => {
+                        let lo = self.mmu.read_byte(self.sp);
+                        let hi = self.mmu.read_byte(self.sp + 1);
+                        self.registers.a.set(hi);
+                        self.registers.flags.set_from_u8(lo);
+                    }
+                    _ => {
+                        let register = self.registers.get_r16stk(register);
+                        let lo = self.mmu.read_byte(self.sp);
+                        let hi = self.mmu.read_byte(self.sp + 1);
+                        ld_r16_imm16(register, (hi as u16) << 8 | lo as u16);
+                    }
+                }
+                self.sp += 2;
+                self.pc += 1;
+                3
+            }
+            0xC5 | 0xD5 | 0xE5 | 0xF5 => {
+                // ## println!("{:#04x}: push r16stk", self.pc);
+                let register = R16stk::from_u8((opcode & 0b0011_0000) >> 4);
+                match register {
+                    R16stk::AF => {
+                        let hi = self.registers.a.get();
+                        let lo = self.registers.flags.to_u8();
+                        self.mmu
+                            .write_word(self.sp - 2, (hi as u16) << 8 | lo as u16);
+                    }
+                    _ => {
+                        let register = self.registers.get_r16stk(register);
+                        let hi = register.0.get();
+                        let lo = register.1.get();
+                        self.mmu
+                            .write_word(self.sp - 2, (hi as u16) << 8 | lo as u16);
+                    }
+                }
+                self.sp -= 2;
+                self.pc += 1;
+                4
+            },
+            0xCB => {
+                let opcode = self.mmu.read_byte(self.pc + 1);
+                let operand = R8::from_u8(opcode & 0b0000_0111);
+                let operand = self.registers.get_r8(operand);
+                match opcode {
+                    0x00..=0x07 => {
+                        // ## println!("{:#04x}: rlc r8", self.pc);
+                        match operand {
+                            R8OrMem::R8(r8) => r8.set(rlc_r8(r8.get(), &self.registers.flags)),
+                            R8OrMem::Ptr(ptr) => {
+                                let value = self.mmu.read_byte(ptr);
+                                let value = rlc_r8(value, &self.registers.flags);
+                                self.mmu.write_byte(ptr, value);
+                            }
+                        };
+                        self.pc += 2;
+                        2
+                    },
+                    0x08..=0x0F => {
+                        // ## println!("{:#04x}: rrc r8", self.pc);
+                        match operand {
+                            R8OrMem::R8(r8) => r8.set(rrc_r8(r8.get(), &self.registers.flags)),
+                            R8OrMem::Ptr(ptr) => {
+                                let value = self.mmu.read_byte(ptr);
+                                let value = rrc_r8(value, &self.registers.flags);
+                                self.mmu.write_byte(ptr, value);
+                            }
+                        };
+                        self.pc += 2;
+                        2
+                    },
+                    0x10..=0x17 => {
+                        // ## println!("{:#04x}: rl r8", self.pc);
+                        match operand {
+                            R8OrMem::R8(r8) => r8.set(rl_r8(r8.get(), &self.registers.flags)),
+                            R8OrMem::Ptr(ptr) => {
+                                let value = self.mmu.read_byte(ptr);
+                                let value = rl_r8(value, &self.registers.flags);
+                                self.mmu.write_byte(ptr, value);
+                            }
+                        };
+                        self.pc += 2;
+                        2
+                    },
+                    0x18..=0x1F => {
+                        // ## println!("{:#04x}: rr r8", self.pc);
+                        match operand {
+                            R8OrMem::R8(r8) => r8.set(rr_r8(r8.get(), &self.registers.flags)),
+                            R8OrMem::Ptr(ptr) => {
+                                let value = self.mmu.read_byte(ptr);
+                                let value = rr_r8(value, &self.registers.flags);
+                                self.mmu.write_byte(ptr, value);
+                            }
+                        };
+                        self.pc += 2;
+                        2
+                    },
+                    0x20..=0x27 => {
+                        // ## println!("{:#04x}: sla r8", self.pc);
+                        match operand {
+                            R8OrMem::R8(r8) => r8.set(sla_r8(r8.get(), &self.registers.flags)),
+                            R8OrMem::Ptr(ptr) => {
+                                let value = self.mmu.read_byte(ptr);
+                                let value = sla_r8(value, &self.registers.flags);
+                                self.mmu.write_byte(ptr, value);
+                            }
+                        };
+                        self.pc += 2;
+                        2
+                    },
+                    0x28..=0x2F => {
+                        // ## println!("{:#04x}: sra r8", self.pc);
+                        match operand {
+                            R8OrMem::R8(r8) => r8.set(sra_r8(r8.get(), &self.registers.flags)),
+                            R8OrMem::Ptr(ptr) => {
+                                let value = self.mmu.read_byte(ptr);
+                                let value = sra_r8(value, &self.registers.flags);
+                                self.mmu.write_byte(ptr, value);
+                            }
+                        };
+                        self.pc += 2;
+                        2
+                    },
+                    0x30..=0x37 => {
+                        // ## println!("{:#04x}: swap r8", self.pc);
+                        match operand {
+                            R8OrMem::R8(r8) => r8.set(swap_r8(r8.get(), &self.registers.flags)),
+                            R8OrMem::Ptr(ptr) => {
+                                let value = self.mmu.read_byte(ptr);
+                                let value = swap_r8(value, &self.registers.flags);
+                                self.mmu.write_byte(ptr, value);
+                            }
+                        };
+                        self.pc += 2;
+                        2
+                    },
+                    0x38..=0x3F => {
+                        // ## println!("{:#04x}: srl r8", self.pc);
+                        match operand {
+                            R8OrMem::R8(r8) => r8.set(srl_r8(r8.get(), &self.registers.flags)),
+                            R8OrMem::Ptr(ptr) => {
+                                let value = self.mmu.read_byte(ptr);
+                                let value = srl_r8(value, &self.registers.flags);
+                                self.mmu.write_byte(ptr, value);
+                            }
+                        };
+                        self.pc += 2;
+                        2
+                    },
+                    0x40..=0x7F => {
+                        // ## println!("{:#04x}: bit b3, r8", self.pc);
+                        let bit_index = (opcode & 0b0011_1000) >> 3;
+                        let value = match operand {
+                            R8OrMem::R8(r8) => r8.get(),
+                            R8OrMem::Ptr(ptr) => self.mmu.read_byte(ptr),
+                        };
+                        bit_b3_r8(bit_index, value, &self.registers.flags);
+                        self.pc += 2;
+                        2
+                    },
+                    0x80..=0xBF => {
+                        // ## println!("{:#04x}: res b3, r8", self.pc);
+                        let bit_index = (opcode & 0b0011_1000) >> 3;
+                        match operand {
+                            R8OrMem::R8(r8) => r8.set(res_b3_r8(bit_index, r8.get())),
+                            R8OrMem::Ptr(ptr) => {
+                                let value = self.mmu.read_byte(ptr);
+                                let value = res_b3_r8(bit_index, value);
+                                self.mmu.write_byte(ptr, value);
+                            }
+                        };
+                        self.pc += 2;
+                        2
+                    },
+                    0xC0..=0xFF => {
+                        // ## println!("{:#04x}: set b3, r8", self.pc);
+                        let bit_index = (opcode & 0b0011_1000) >> 3;
+                        match operand {
+                            R8OrMem::R8(r8) => r8.set(set_b3_r8(bit_index, r8.get())),
+                            R8OrMem::Ptr(ptr) => {
+                                let value = self.mmu.read_byte(ptr);
+                                let value = set_b3_r8(bit_index, value);
+                                self.mmu.write_byte(ptr, value);
+                            }
+                        };
+                        self.pc += 2;
+                        2
+                    },
+                }
+            },
+            _ => panic!("Invalid opcode")
         }
     }
 
