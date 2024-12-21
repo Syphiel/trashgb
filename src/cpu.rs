@@ -948,15 +948,19 @@ impl Cpu {
                     self.ime = true;
                 }
                 if self.state != State::Halted {
+                    let tac_enable = self.mmu.read_byte(0xFF07) & 0b100 != 0;
                     let duration = self.step() as u32;
                     ticks += duration;
-                    if self.mmu.increment_timer(duration) {
+                    if self.mmu.increment_timer(duration, tac_enable) {
                         self.mmu
                             .write_byte(0xFF0F, self.mmu.read_byte(0xFF0F) | 0b0000_0100);
                     }
                 } else {
                     ticks += 1;
-                    if self.mmu.increment_timer(1) {
+                    if self
+                        .mmu
+                        .increment_timer(1, self.mmu.read_byte(0xFF07) & 0b100 != 0)
+                    {
                         self.mmu
                             .write_byte(0xFF0F, self.mmu.read_byte(0xFF0F) | 0b0000_0100);
                     }

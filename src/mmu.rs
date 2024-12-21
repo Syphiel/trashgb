@@ -321,30 +321,31 @@ impl Mmu {
         self.window_counter = value;
     }
 
-    pub fn increment_timer(&mut self, cycles: u32) -> bool {
+    pub fn increment_timer(&mut self, cycles: u32, tac_enable: bool) -> bool {
         let cycles = cycles * 4;
-        let timer = self.timer.wrapping_add(cycles as u16);
-        self.io[0x04] = (self.timer >> 8) as u8;
-        if self.io[0x07] & 0b100 != 0 {
-            let shift = match self.io[0x07] & 0b0000_0011 {
-                0b00 => 10,
-                0b01 => 4,
-                0b10 => 6,
-                0b11 => 8,
-                _ => unreachable!(),
-            };
-
-            if timer >> shift != self.timer >> shift {
-                self.io[0x05] = self.io[0x05].wrapping_add(1);
-                if self.io[0x05] == 0 {
-                    self.io[0x05] = self.io[0x06];
-                    self.timer = timer;
-                    return true;
+        let mut return_value = false;
+        let bit_select = match self.io[0x07] & 0b0000_0011 {
+            0b00 => 9,
+            0b01 => 3,
+            0b10 => 5,
+            0b11 => 7,
+            _ => unreachable!(),
+        };
+        if tac_enable {
+            for _ in 0..cycles {
+                let old_bit = self.timer >> bit_select & 1;
+                self.timer = self.timer.wrapping_add(1);
+                let new_bit = self.timer >> bit_select & 1;
+                if old_bit == 1 && new_bit == 0 {
+                    self.io[0x05] = self.io[0x05].wrapping_add(1);
+                    if self.io[0x05] == 0 {
+                        self.io[0x05] = self.io[0x06];
+                        return_value = true;
+                    }
                 }
             }
         }
-        self.timer = timer;
-        false
+        return_value
     }
     pub fn joypad_a(&mut self, pressed: bool) {
         self.joypad.a = pressed;
