@@ -25,7 +25,7 @@ trashgb.exe <rom_file>
 ```
 
 #### Web
-Uh.. Visit the webpage???
+Visit [syph.io/gb](https://syph.io/gb)
 
 ### Key Bindings
 | Key         | Action |
@@ -45,17 +45,9 @@ Uh.. Visit the webpage???
 **Instruction tests**:
 
 ![Blargg's Instruction Tests](screenshots/cpu_instrs.png)
- - [X] 01-special
- - [X] 02-interrupts
- - [X] 03-op sp,hl
- - [X] 04-op r,imm
- - [X] 05-op rp
- - [X] 06-ld r,r
- - [X] 07-jr,jp,call,ret,rst
- - [X] 08-misc instrs
- - [X] 09-op r,r
- - [X] 10-bit ops
- - [X] 11-op a,(hl)
+![Blargg's Instruction Timing Tests](screenshots/instr_timing.png)
+ - [X] cpu_instrs\.gb
+ - [X] instr_timing\.gb
 
 #### [Mooneye Test Suite](https://github.com/Gekkio/mooneye-test-suite)
 **acceptance/**:
