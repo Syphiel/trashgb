@@ -191,6 +191,8 @@ impl Cpu {
                         let value = self.mmu.read_byte(ptr);
                         let value = inc_r8(value, &self.registers.flags);
                         self.mmu.write_byte(ptr, value);
+                        self.pc += 1;
+                        return 3;
                     }
                 };
                 self.pc += 1;
@@ -206,6 +208,8 @@ impl Cpu {
                         let value = self.mmu.read_byte(ptr);
                         let value = dec_r8(value, &self.registers.flags);
                         self.mmu.write_byte(ptr, value);
+                        self.pc += 1;
+                        return 3;
                     }
                 };
                 self.pc += 1;
@@ -218,7 +222,11 @@ impl Cpu {
                 let operand = self.registers.get_r8(operand);
                 match operand {
                     R8OrMem::R8(r8) => r8.set(imm8),
-                    R8OrMem::Ptr(ptr) => self.mmu.write_byte(ptr, imm8),
+                    R8OrMem::Ptr(ptr) => {
+                        self.mmu.write_byte(ptr, imm8);
+                        self.pc += 2;
+                        return 3;
+                    }
                 };
                 self.pc += 2;
                 2
@@ -296,21 +304,28 @@ impl Cpu {
             }
             0x40..=0x7F => {
                 // ## println!("{:#04x}: ld r8, r8", self.pc);
+                let mut timing = 1;
                 let source = R8::from_u8(opcode & 0b0000_0111);
                 let source = self.registers.get_r8(source);
                 let source = match source {
                     R8OrMem::R8(r8) => r8.get(),
-                    R8OrMem::Ptr(ptr) => self.mmu.read_byte(ptr),
+                    R8OrMem::Ptr(ptr) => {
+                        timing = 2;
+                        self.mmu.read_byte(ptr)
+                    }
                 };
 
                 let dest = R8::from_u8((opcode & 0b0011_1000) >> 3);
                 let dest = self.registers.get_r8(dest);
                 match dest {
                     R8OrMem::R8(r8) => r8.set(source),
-                    R8OrMem::Ptr(ptr) => self.mmu.write_byte(ptr, source),
+                    R8OrMem::Ptr(ptr) => {
+                        timing = 2;
+                        self.mmu.write_byte(ptr, source)
+                    }
                 };
                 self.pc += 1;
-                1
+                timing
             }
             0x80..=0x87 => {
                 // ## println!("{:#04x}: add a, r8", self.pc);
@@ -319,7 +334,12 @@ impl Cpu {
                 let value = self.registers.get_r8(operand);
                 let value = match value {
                     R8OrMem::R8(r8) => r8.get(),
-                    R8OrMem::Ptr(ptr) => self.mmu.read_byte(ptr),
+                    R8OrMem::Ptr(ptr) => {
+                        let value = self.mmu.read_byte(ptr);
+                        add_a_r8(a, value, &self.registers.flags);
+                        self.pc += 1;
+                        return 2;
+                    }
                 };
 
                 add_a_r8(a, value, &self.registers.flags);
@@ -333,7 +353,12 @@ impl Cpu {
                 let value = self.registers.get_r8(operand);
                 let value = match value {
                     R8OrMem::R8(r8) => r8.get(),
-                    R8OrMem::Ptr(ptr) => self.mmu.read_byte(ptr),
+                    R8OrMem::Ptr(ptr) => {
+                        let value = self.mmu.read_byte(ptr);
+                        adc_a_r8(a, value, &self.registers.flags);
+                        self.pc += 1;
+                        return 2;
+                    }
                 };
 
                 adc_a_r8(a, value, &self.registers.flags);
@@ -347,7 +372,12 @@ impl Cpu {
                 let value = self.registers.get_r8(operand);
                 let value = match value {
                     R8OrMem::R8(r8) => r8.get(),
-                    R8OrMem::Ptr(ptr) => self.mmu.read_byte(ptr),
+                    R8OrMem::Ptr(ptr) => {
+                        let value = self.mmu.read_byte(ptr);
+                        sub_a_r8(a, value, &self.registers.flags);
+                        self.pc += 1;
+                        return 2;
+                    }
                 };
 
                 sub_a_r8(a, value, &self.registers.flags);
@@ -361,7 +391,12 @@ impl Cpu {
                 let value = self.registers.get_r8(operand);
                 let value = match value {
                     R8OrMem::R8(r8) => r8.get(),
-                    R8OrMem::Ptr(ptr) => self.mmu.read_byte(ptr),
+                    R8OrMem::Ptr(ptr) => {
+                        let value = self.mmu.read_byte(ptr);
+                        sbc_a_r8(a, value, &self.registers.flags);
+                        self.pc += 1;
+                        return 2;
+                    }
                 };
 
                 sbc_a_r8(a, value, &self.registers.flags);
@@ -375,7 +410,12 @@ impl Cpu {
                 let value = self.registers.get_r8(operand);
                 let value = match value {
                     R8OrMem::R8(r8) => r8.get(),
-                    R8OrMem::Ptr(ptr) => self.mmu.read_byte(ptr),
+                    R8OrMem::Ptr(ptr) => {
+                        let value = self.mmu.read_byte(ptr);
+                        and_a_r8(a, value, &self.registers.flags);
+                        self.pc += 1;
+                        return 2;
+                    }
                 };
 
                 and_a_r8(a, value, &self.registers.flags);
@@ -389,7 +429,12 @@ impl Cpu {
                 let value = self.registers.get_r8(operand);
                 let value = match value {
                     R8OrMem::R8(r8) => r8.get(),
-                    R8OrMem::Ptr(ptr) => self.mmu.read_byte(ptr),
+                    R8OrMem::Ptr(ptr) => {
+                        let value = self.mmu.read_byte(ptr);
+                        xor_a_r8(a, value, &self.registers.flags);
+                        self.pc += 1;
+                        return 2;
+                    }
                 };
 
                 xor_a_r8(a, value, &self.registers.flags);
@@ -403,7 +448,12 @@ impl Cpu {
                 let value = self.registers.get_r8(operand);
                 let value = match value {
                     R8OrMem::R8(r8) => r8.get(),
-                    R8OrMem::Ptr(ptr) => self.mmu.read_byte(ptr),
+                    R8OrMem::Ptr(ptr) => {
+                        let value = self.mmu.read_byte(ptr);
+                        or_a_r8(a, value, &self.registers.flags);
+                        self.pc += 1;
+                        return 2;
+                    }
                 };
 
                 or_a_r8(a, value, &self.registers.flags);
@@ -417,7 +467,12 @@ impl Cpu {
                 let value = self.registers.get_r8(operand);
                 let value = match value {
                     R8OrMem::R8(r8) => r8.get(),
-                    R8OrMem::Ptr(ptr) => self.mmu.read_byte(ptr),
+                    R8OrMem::Ptr(ptr) => {
+                        let value = self.mmu.read_byte(ptr);
+                        cp_a_r8(a, value, &self.registers.flags);
+                        self.pc += 1;
+                        return 2;
+                    }
                 };
 
                 cp_a_r8(a, value, &self.registers.flags);
@@ -796,6 +851,8 @@ impl Cpu {
                                 let value = self.mmu.read_byte(ptr);
                                 let value = rlc_r8(value, &self.registers.flags);
                                 self.mmu.write_byte(ptr, value);
+                                self.pc += 2;
+                                return 4;
                             }
                         };
                         self.pc += 2;
@@ -809,6 +866,8 @@ impl Cpu {
                                 let value = self.mmu.read_byte(ptr);
                                 let value = rrc_r8(value, &self.registers.flags);
                                 self.mmu.write_byte(ptr, value);
+                                self.pc += 2;
+                                return 4;
                             }
                         };
                         self.pc += 2;
@@ -822,6 +881,8 @@ impl Cpu {
                                 let value = self.mmu.read_byte(ptr);
                                 let value = rl_r8(value, &self.registers.flags);
                                 self.mmu.write_byte(ptr, value);
+                                self.pc += 2;
+                                return 4;
                             }
                         };
                         self.pc += 2;
@@ -835,6 +896,8 @@ impl Cpu {
                                 let value = self.mmu.read_byte(ptr);
                                 let value = rr_r8(value, &self.registers.flags);
                                 self.mmu.write_byte(ptr, value);
+                                self.pc += 2;
+                                return 4;
                             }
                         };
                         self.pc += 2;
@@ -848,6 +911,8 @@ impl Cpu {
                                 let value = self.mmu.read_byte(ptr);
                                 let value = sla_r8(value, &self.registers.flags);
                                 self.mmu.write_byte(ptr, value);
+                                self.pc += 2;
+                                return 4;
                             }
                         };
                         self.pc += 2;
@@ -861,6 +926,8 @@ impl Cpu {
                                 let value = self.mmu.read_byte(ptr);
                                 let value = sra_r8(value, &self.registers.flags);
                                 self.mmu.write_byte(ptr, value);
+                                self.pc += 2;
+                                return 4;
                             }
                         };
                         self.pc += 2;
@@ -874,6 +941,8 @@ impl Cpu {
                                 let value = self.mmu.read_byte(ptr);
                                 let value = swap_r8(value, &self.registers.flags);
                                 self.mmu.write_byte(ptr, value);
+                                self.pc += 2;
+                                return 4;
                             }
                         };
                         self.pc += 2;
@@ -887,6 +956,8 @@ impl Cpu {
                                 let value = self.mmu.read_byte(ptr);
                                 let value = srl_r8(value, &self.registers.flags);
                                 self.mmu.write_byte(ptr, value);
+                                self.pc += 2;
+                                return 4;
                             }
                         };
                         self.pc += 2;
@@ -897,7 +968,12 @@ impl Cpu {
                         let bit_index = (opcode & 0b0011_1000) >> 3;
                         let value = match operand {
                             R8OrMem::R8(r8) => r8.get(),
-                            R8OrMem::Ptr(ptr) => self.mmu.read_byte(ptr),
+                            R8OrMem::Ptr(ptr) => {
+                                let value = self.mmu.read_byte(ptr);
+                                bit_b3_r8(bit_index, value, &self.registers.flags);
+                                self.pc += 2;
+                                return 3;
+                            }
                         };
                         bit_b3_r8(bit_index, value, &self.registers.flags);
                         self.pc += 2;
@@ -912,6 +988,8 @@ impl Cpu {
                                 let value = self.mmu.read_byte(ptr);
                                 let value = res_b3_r8(bit_index, value);
                                 self.mmu.write_byte(ptr, value);
+                                self.pc += 2;
+                                return 4;
                             }
                         };
                         self.pc += 2;
@@ -926,6 +1004,8 @@ impl Cpu {
                                 let value = self.mmu.read_byte(ptr);
                                 let value = set_b3_r8(bit_index, value);
                                 self.mmu.write_byte(ptr, value);
+                                self.pc += 2;
+                                return 4;
                             }
                         };
                         self.pc += 2;
