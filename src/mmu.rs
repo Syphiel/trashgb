@@ -150,19 +150,13 @@ impl Mmu {
                 }
                 self.rom[self.bank0][address]
             }
-            0x0100..=0x3FFF => {
-                self.rom[self.bank0][address]
-            }
-            0x4000..=0x7FFF => {
-                self.rom[self.bank1][address - 0x4000]
-            }
+            0x0100..=0x3FFF => self.rom[self.bank0][address],
+            0x4000..=0x7FFF => self.rom[self.bank1][address - 0x4000],
             0x8000..=0x9FFF => self.vram[address - 0x8000],
-            0xA000..=0xBFFF => {
-                match self.eram {
-                    Some(bank) => self.ram[bank][address - 0xA000],
-                    None => 0xFF,
-                }
-            }
+            0xA000..=0xBFFF => match self.eram {
+                Some(bank) => self.ram[bank][address - 0xA000],
+                None => 0xFF,
+            },
             0xC000..=0xCFFF => self.wram1[address - 0xC000],
             0xD000..=0xDFFF => self.wram2[address - 0xD000],
             0xE000..=0xFDFF => 0xFF,
@@ -217,7 +211,7 @@ impl Mmu {
                     mapper.write_register(address, value, self);
                     self.mapper = Some(mapper);
                 }
-            },
+            }
             0x8000..=0x9FFF => self.vram[address as usize - 0x8000] = value,
             0xA000..=0xBFFF => {
                 if let Some(bank) = self.eram {

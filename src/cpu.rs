@@ -47,14 +47,14 @@ impl Cpu {
                 // ## println!("{:#04x}: nop", self.pc);
                 self.pc += 1;
                 1
-            },
+            }
             0x18 => {
                 // ## println!("{:#04x}: jr imm8", self.pc);
                 let imm8 = self.mmu.read_byte(self.pc + 1) as i8;
                 self.pc = (self.pc as i16 + imm8 as i16) as u16;
                 self.pc += 2;
                 3
-            },
+            }
             0x20 | 0x28 | 0x30 | 0x38 => {
                 // ## println!("{:#04x}: jr cond, imm8", self.pc);
                 let condition = (opcode & 0b0001_1000) >> 3;
@@ -67,12 +67,12 @@ impl Cpu {
                 }
                 self.pc += 2;
                 2
-            },
+            }
             0x10 => {
                 // ## println!("{:#04x}: stop", self.pc);
                 self.pc += 2;
                 1
-            },
+            }
             0x01 | 0x11 | 0x21 | 0x31 => {
                 // ## println!("{:#04x}: ld r16, imm16", self.pc);
                 let imm16 = self.mmu.read_word(self.pc + 1);
@@ -86,7 +86,7 @@ impl Cpu {
                 }
                 self.pc += 3;
                 3
-            },
+            }
             0x02 | 0x12 | 0x22 | 0x32 => {
                 // ## println!("{:#04x}: ld [r16mem], a", self.pc);
                 let dest = R16mem::from_u8((opcode & 0b0011_0000) >> 4);
@@ -110,7 +110,7 @@ impl Cpu {
                 }
                 self.pc += 1;
                 2
-            },
+            }
             0x0A | 0x1A | 0x2A | 0x3A => {
                 // ## println!("{:#04x}: ld a, [r16mem]", self.pc);
                 let source = R16mem::from_u8((opcode & 0b0011_0000) >> 4);
@@ -126,24 +126,20 @@ impl Cpu {
                 ld_a_r16mem(&self.registers.a, source);
 
                 match action {
-                    AfterInstruction::Increment => {
-                        inc_r16((&self.registers.h, &self.registers.l))
-                    }
-                    AfterInstruction::Decrement => {
-                        dec_r16((&self.registers.h, &self.registers.l))
-                    }
+                    AfterInstruction::Increment => inc_r16((&self.registers.h, &self.registers.l)),
+                    AfterInstruction::Decrement => dec_r16((&self.registers.h, &self.registers.l)),
                     AfterInstruction::None => {}
                 }
                 self.pc += 1;
                 2
-            },
+            }
             0x08 => {
                 // ## println!("{:#04x}: ld [imm16], sp", self.pc);
                 let imm16 = self.mmu.read_word(self.pc + 1);
                 self.mmu.write_word(imm16, self.sp);
                 self.pc += 3;
                 5
-            },
+            }
             0x03 | 0x13 | 0x23 | 0x33 => {
                 // ## println!("{:#04x}: inc r16", self.pc);
                 let operand = R16::from_u8((opcode & 0b0011_0000) >> 4);
@@ -154,7 +150,7 @@ impl Cpu {
                 }
                 self.pc += 1;
                 2
-            },
+            }
             0x0B | 0x1B | 0x2B | 0x3B => {
                 // ## println!("{:#04x}: dec r16", self.pc);
                 let operand = R16::from_u8((opcode & 0b0011_0000) >> 4);
@@ -165,7 +161,7 @@ impl Cpu {
                 }
                 self.pc += 1;
                 2
-            },
+            }
             0x09 | 0x19 | 0x29 | 0x39 => {
                 // ## println!("{:#04x}: add hl, r16", self.pc);
                 let operand = R16::from_u8((opcode & 0b0011_0000) >> 4);
@@ -184,7 +180,7 @@ impl Cpu {
                 }
                 self.pc += 1;
                 2
-            },
+            }
             0x04 | 0x0C | 0x14 | 0x1C | 0x24 | 0x2C | 0x34 | 0x3C => {
                 // ## println!("{:#04x}: inc r8", self.pc);
                 let operand = R8::from_u8((opcode & 0b0011_1000) >> 3);
@@ -199,7 +195,7 @@ impl Cpu {
                 };
                 self.pc += 1;
                 1
-            },
+            }
             0x05 | 0x0D | 0x15 | 0x1D | 0x25 | 0x2D | 0x35 | 0x3D => {
                 // ## println!("{:#04x}: dec r8", self.pc);
                 let operand = R8::from_u8((opcode & 0b0011_1000) >> 3);
@@ -214,7 +210,7 @@ impl Cpu {
                 };
                 self.pc += 1;
                 1
-            },
+            }
             0x06 | 0x0E | 0x16 | 0x1E | 0x26 | 0x2E | 0x36 | 0x3E => {
                 // ## println!("{:#04x}: ld r8, imm8", self.pc);
                 let imm8 = self.mmu.read_byte(self.pc + 1);
@@ -226,7 +222,7 @@ impl Cpu {
                 };
                 self.pc += 2;
                 2
-            },
+            }
             0x07 => {
                 // ## println!("{:#04x}: rlca", self.pc);
                 self.registers
@@ -235,7 +231,7 @@ impl Cpu {
                 self.registers.flags.zero.set(false);
                 self.pc += 1;
                 1
-            },
+            }
             0x0F => {
                 // ## println!("{:#04x}: rrca", self.pc);
                 self.registers
@@ -244,7 +240,7 @@ impl Cpu {
                 self.registers.flags.zero.set(false);
                 self.pc += 1;
                 1
-            },
+            }
             0x17 => {
                 // ## println!("{:#04x}: rla", self.pc);
                 self.registers
@@ -253,7 +249,7 @@ impl Cpu {
                 self.registers.flags.zero.set(false);
                 self.pc += 1;
                 1
-            },
+            }
             0x1F => {
                 // ## println!("{:#04x}: rra", self.pc);
                 self.registers
@@ -262,19 +258,19 @@ impl Cpu {
                 self.pc += 1;
                 self.registers.flags.zero.set(false);
                 1
-            },
+            }
             0x27 => {
                 // ## println!("{:#04x}: daa", self.pc);
                 daa(&self.registers.a, &self.registers.flags);
                 self.pc += 1;
                 1
-            },
+            }
             0x2F => {
                 // ## println!("{:#04x}: cpl", self.pc);
                 cpl(&self.registers.a, &self.registers.flags);
                 self.pc += 1;
                 1
-            },
+            }
             0x37 => {
                 // ## println!("{:#04x}: scf", self.pc);
                 self.registers.flags.carry.set(true);
@@ -282,7 +278,7 @@ impl Cpu {
                 self.registers.flags.half_carry.set(false);
                 self.pc += 1;
                 1
-            },
+            }
             0x3F => {
                 // ## println!("{:#04x}: ccf", self.pc);
                 let carry = self.registers.flags.carry.get();
@@ -291,13 +287,13 @@ impl Cpu {
                 self.registers.flags.half_carry.set(false);
                 self.pc += 1;
                 1
-            },
+            }
             0x76 => {
                 // ## println!("{:#04x}: halt", self.pc);
                 self.state = State::Halted;
                 self.pc += 1;
                 1
-            },
+            }
             0x40..=0x7F => {
                 // ## println!("{:#04x}: ld r8, r8", self.pc);
                 let source = R8::from_u8(opcode & 0b0000_0111);
@@ -315,7 +311,7 @@ impl Cpu {
                 };
                 self.pc += 1;
                 1
-            },
+            }
             0x80..=0x87 => {
                 // ## println!("{:#04x}: add a, r8", self.pc);
                 let operand = R8::from_u8(opcode & 0b0000_0111);
@@ -329,7 +325,7 @@ impl Cpu {
                 add_a_r8(a, value, &self.registers.flags);
                 self.pc += 1;
                 1
-            },
+            }
             0x88..=0x8F => {
                 // ## println!("{:#04x}: adc a, r8", self.pc);
                 let operand = R8::from_u8(opcode & 0b0000_0111);
@@ -343,7 +339,7 @@ impl Cpu {
                 adc_a_r8(a, value, &self.registers.flags);
                 self.pc += 1;
                 1
-            },
+            }
             0x90..=0x97 => {
                 // ## println!("{:#04x}: sub a, r8", self.pc);
                 let operand = R8::from_u8(opcode & 0b0000_0111);
@@ -357,7 +353,7 @@ impl Cpu {
                 sub_a_r8(a, value, &self.registers.flags);
                 self.pc += 1;
                 1
-            },
+            }
             0x98..=0x9F => {
                 // ## println!("{:#04x}: sbc a, r8", self.pc);
                 let operand = R8::from_u8(opcode & 0b0000_0111);
@@ -371,7 +367,7 @@ impl Cpu {
                 sbc_a_r8(a, value, &self.registers.flags);
                 self.pc += 1;
                 1
-            },
+            }
             0xA0..=0xA7 => {
                 // ## println!("{:#04x}: and a, r8", self.pc);
                 let operand = R8::from_u8(opcode & 0b0000_0111);
@@ -385,7 +381,7 @@ impl Cpu {
                 and_a_r8(a, value, &self.registers.flags);
                 self.pc += 1;
                 1
-            },
+            }
             0xA8..=0xAF => {
                 // ## println!("{:#04x}: xor a, r8", self.pc);
                 let operand = R8::from_u8(opcode & 0b0000_0111);
@@ -399,7 +395,7 @@ impl Cpu {
                 xor_a_r8(a, value, &self.registers.flags);
                 self.pc += 1;
                 1
-            },
+            }
             0xB0..=0xB7 => {
                 // ## println!("{:#04x}: or a, r8", self.pc);
                 let operand = R8::from_u8(opcode & 0b0000_0111);
@@ -413,7 +409,7 @@ impl Cpu {
                 or_a_r8(a, value, &self.registers.flags);
                 self.pc += 1;
                 1
-            },
+            }
             0xB8..=0xBF => {
                 // ## println!("{:#04x}: cp a, r8", self.pc);
                 let operand = R8::from_u8(opcode & 0b0000_0111);
@@ -427,7 +423,7 @@ impl Cpu {
                 cp_a_r8(a, value, &self.registers.flags);
                 self.pc += 1;
                 1
-            },
+            }
             0xC6 => {
                 // ## println!("{:#04x}: add a, imm8", self.pc);
                 let imm8 = self.mmu.read_byte(self.pc + 1);
@@ -436,7 +432,7 @@ impl Cpu {
                 add_a_imm8(a, imm8, &self.registers.flags);
                 self.pc += 2;
                 2
-            },
+            }
             0xCE => {
                 // ## println!("{:#04x}: adc a, imm8", self.pc);
                 let imm8 = self.mmu.read_byte(self.pc + 1);
@@ -445,7 +441,7 @@ impl Cpu {
                 adc_a_imm8(a, imm8, &self.registers.flags);
                 self.pc += 2;
                 2
-            },
+            }
             0xD6 => {
                 // ## println!("{:#04x}: sub a, imm8", self.pc);
                 let imm8 = self.mmu.read_byte(self.pc + 1);
@@ -454,7 +450,7 @@ impl Cpu {
                 sub_a_imm8(a, imm8, &self.registers.flags);
                 self.pc += 2;
                 2
-            },
+            }
             0xDE => {
                 // ## println!("{:#04x}: sbc a, imm8", self.pc);
                 let imm8 = self.mmu.read_byte(self.pc + 1);
@@ -463,7 +459,7 @@ impl Cpu {
                 sbc_a_imm8(a, imm8, &self.registers.flags);
                 self.pc += 2;
                 2
-            },
+            }
             0xE6 => {
                 // ## println!("{:#04x}: and a, imm8", self.pc);
                 let imm8 = self.mmu.read_byte(self.pc + 1);
@@ -472,7 +468,7 @@ impl Cpu {
                 and_a_imm8(a, imm8, &self.registers.flags);
                 self.pc += 2;
                 2
-            },
+            }
             0xEE => {
                 // ## println!("{:#04x}: xor a, imm8", self.pc);
                 let imm8 = self.mmu.read_byte(self.pc + 1);
@@ -481,7 +477,7 @@ impl Cpu {
                 xor_a_imm8(a, imm8, &self.registers.flags);
                 self.pc += 2;
                 2
-            },
+            }
             0xF6 => {
                 // ## println!("{:#04x}: or a, imm8", self.pc);
                 let imm8 = self.mmu.read_byte(self.pc + 1);
@@ -490,7 +486,7 @@ impl Cpu {
                 or_a_imm8(a, imm8, &self.registers.flags);
                 self.pc += 2;
                 2
-            },
+            }
             0xFE => {
                 // ## println!("{:#04x}: cp a, imm8", self.pc);
                 let imm8 = self.mmu.read_byte(self.pc + 1);
@@ -499,7 +495,7 @@ impl Cpu {
                 cp_a_imm8(a, imm8, &self.registers.flags);
                 self.pc += 2;
                 2
-            },
+            }
             0xC7 | 0xCF | 0xD7 | 0xDF | 0xE7 | 0xEF | 0xF7 | 0xFF => {
                 // ## println!("{:#04x}: rst n", self.pc);
                 let n = (opcode & 0b0011_1000) >> 3;
@@ -507,7 +503,7 @@ impl Cpu {
                 self.sp -= 2;
                 self.pc = n as u16 * 8;
                 4
-            },
+            }
             0xE2 => {
                 // ## println!("{:#04x}: ld (c), a", self.pc);
                 let a = self.registers.a.get();
@@ -638,8 +634,7 @@ impl Cpu {
             }
             0xF9 => {
                 // ## println!("{:#04x}: ld sp, hl", self.pc);
-                self.sp =
-                    self.registers.l.get() as u16 | (self.registers.h.get() as u16) << 8;
+                self.sp = self.registers.l.get() as u16 | (self.registers.h.get() as u16) << 8;
                 self.pc += 1;
                 2
             }
@@ -689,8 +684,7 @@ impl Cpu {
             }
             0xE9 => {
                 // ## println!("{:#04x}: jp hl", self.pc);
-                self.pc =
-                    (self.registers.h.get() as u16) << 8 | self.registers.l.get() as u16;
+                self.pc = (self.registers.h.get() as u16) << 8 | self.registers.l.get() as u16;
                 1
             }
             0xC0 => {
@@ -745,7 +739,7 @@ impl Cpu {
                 self.ime = true;
                 self.pc += 1;
                 1
-            },
+            }
             0xC1 | 0xD1 | 0xE1 | 0xF1 => {
                 // ## println!("{:#04x}: pop r16stk", self.pc);
                 let register = R16stk::from_u8((opcode & 0b0011_0000) >> 4);
@@ -788,7 +782,7 @@ impl Cpu {
                 self.sp -= 2;
                 self.pc += 1;
                 4
-            },
+            }
             0xCB => {
                 let opcode = self.mmu.read_byte(self.pc + 1);
                 let operand = R8::from_u8(opcode & 0b0000_0111);
@@ -806,7 +800,7 @@ impl Cpu {
                         };
                         self.pc += 2;
                         2
-                    },
+                    }
                     0x08..=0x0F => {
                         // ## println!("{:#04x}: rrc r8", self.pc);
                         match operand {
@@ -819,7 +813,7 @@ impl Cpu {
                         };
                         self.pc += 2;
                         2
-                    },
+                    }
                     0x10..=0x17 => {
                         // ## println!("{:#04x}: rl r8", self.pc);
                         match operand {
@@ -832,7 +826,7 @@ impl Cpu {
                         };
                         self.pc += 2;
                         2
-                    },
+                    }
                     0x18..=0x1F => {
                         // ## println!("{:#04x}: rr r8", self.pc);
                         match operand {
@@ -845,7 +839,7 @@ impl Cpu {
                         };
                         self.pc += 2;
                         2
-                    },
+                    }
                     0x20..=0x27 => {
                         // ## println!("{:#04x}: sla r8", self.pc);
                         match operand {
@@ -858,7 +852,7 @@ impl Cpu {
                         };
                         self.pc += 2;
                         2
-                    },
+                    }
                     0x28..=0x2F => {
                         // ## println!("{:#04x}: sra r8", self.pc);
                         match operand {
@@ -871,7 +865,7 @@ impl Cpu {
                         };
                         self.pc += 2;
                         2
-                    },
+                    }
                     0x30..=0x37 => {
                         // ## println!("{:#04x}: swap r8", self.pc);
                         match operand {
@@ -884,7 +878,7 @@ impl Cpu {
                         };
                         self.pc += 2;
                         2
-                    },
+                    }
                     0x38..=0x3F => {
                         // ## println!("{:#04x}: srl r8", self.pc);
                         match operand {
@@ -897,7 +891,7 @@ impl Cpu {
                         };
                         self.pc += 2;
                         2
-                    },
+                    }
                     0x40..=0x7F => {
                         // ## println!("{:#04x}: bit b3, r8", self.pc);
                         let bit_index = (opcode & 0b0011_1000) >> 3;
@@ -908,7 +902,7 @@ impl Cpu {
                         bit_b3_r8(bit_index, value, &self.registers.flags);
                         self.pc += 2;
                         2
-                    },
+                    }
                     0x80..=0xBF => {
                         // ## println!("{:#04x}: res b3, r8", self.pc);
                         let bit_index = (opcode & 0b0011_1000) >> 3;
@@ -922,7 +916,7 @@ impl Cpu {
                         };
                         self.pc += 2;
                         2
-                    },
+                    }
                     0xC0..=0xFF => {
                         // ## println!("{:#04x}: set b3, r8", self.pc);
                         let bit_index = (opcode & 0b0011_1000) >> 3;
@@ -936,10 +930,10 @@ impl Cpu {
                         };
                         self.pc += 2;
                         2
-                    },
+                    }
                 }
-            },
-            _ => panic!("Invalid opcode")
+            }
+            _ => panic!("Invalid opcode"),
         }
     }
 

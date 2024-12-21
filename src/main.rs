@@ -15,9 +15,9 @@ use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 
 #[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
-#[cfg(target_arch = "wasm32")]
 use instant::{Duration, Instant};
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use winit::platform::web::WindowExtWebSys;
 
@@ -63,13 +63,10 @@ async fn run(rom: &[u8]) {
     {
         let canvas = window.canvas();
         web_sys::window()
-                .and_then(|win| win.document())
-                .and_then(|doc| doc.body())
-                .and_then(|body| {
-                    body.append_child(&web_sys::Element::from(canvas))
-                        .ok()
-                })
-                .expect("couldn't append canvas to document body");
+            .and_then(|win| win.document())
+            .and_then(|doc| doc.body())
+            .and_then(|body| body.append_child(&web_sys::Element::from(canvas)).ok())
+            .expect("couldn't append canvas to document body");
     }
     let mut cpu = Cpu::new();
     cpu.mmu.load_game(rom);
