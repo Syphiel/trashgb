@@ -217,7 +217,6 @@ impl Mmu {
             for i in 0..0xA0 {
                 self.write_byte(0xFE00 + i, self.read_byte(start + i));
             }
-            return;
         }
         if address == 0xFF50 {
             /* Read-Only after initialization */

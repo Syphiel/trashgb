@@ -55,7 +55,7 @@ Visit [syph.io/gb](https://syph.io/gb)
  - [X] bits/reg_f
  - [X] instr/daa
  - [X] oam_dma/basic
- - [ ] oam_dma/reg_read
+ - [X] oam_dma/reg_read
  - [X] timer/div_write
  - [ ] timer/rapid_toggle
  - [X] timer/tim00
