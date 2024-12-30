@@ -59,11 +59,11 @@ Visit [syph.io/gb](https://syph.io/gb)
  - [X] timer/div_write
  - [ ] timer/rapid_toggle
  - [X] timer/tim00
- - [ ] timer/tim00_div_trigger
+ - [X] timer/tim00_div_trigger
  - [X] timer/tim01
- - [ ] timer/tim01_div_trigger
+ - [X] timer/tim01_div_trigger
  - [X] timer/tim11
- - [ ] timer/tim11_div_trigger
+ - [X] timer/tim11_div_trigger
  - [ ] timer/tima_reload
  - [ ] timer/tma_write_reloading
 

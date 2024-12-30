@@ -190,6 +190,20 @@ impl Mmu {
             return;
         }
         if address == 0xFF04 {
+            let tac_bit = match self.io[0x07] & 0b11 {
+                0b00 => 9,
+                0b01 => 3,
+                0b10 => 5,
+                0b11 => 7,
+                _ => unreachable!(),
+            };
+            if (self.timer >> tac_bit) & 1 == 1 {
+                self.io[0x05] = self.io[0x05].wrapping_add(1);
+                if self.io[0x05] == 0 {
+                    self.io[0x05] = self.io[0x06];
+                    self.io[0x0F] |= 0b0000_0010;
+                }
+            }
             self.timer = 0;
         }
         if address == 0xFF0F {
